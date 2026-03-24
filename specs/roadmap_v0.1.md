@@ -145,11 +145,11 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/memory.md` (seção 9), `specs/PRD.md` (seção 9), `specs/sub-agents.md` (seção 9), `specs/authentication.md` (seção 5)
 
 **Tarefas:**
-- [ ] 1.1: Instalar `pg` e `@types/pg`
-- [ ] 1.2: Criar `src/infra/database.ts` — Singleton de conexão PostgreSQL (Pool)
+- [x] 1.1: Instalar `pg` e `@types/pg`
+- [x] 1.2: Criar `src/infra/database.ts` — Singleton de conexão PostgreSQL (Pool)
   - Lê DATABASE_URL do .env
   - Retry de conexão no startup (3 tentativas)
-- [ ] 1.3: Criar `src/infra/migrations.ts` — cria TODAS as tabelas se não existirem:
+- [x] 1.3: Criar `src/infra/migrations.ts` — cria TODAS as tabelas se não existirem:
   - `CREATE EXTENSION IF NOT EXISTS vector`
   - `conversations` (id UUID, user_id, platform, provider, context_window_size, current_token_count, created_at, updated_at)
   - `messages` (id UUID, conversation_id, role, content, token_count, embedding vector(768), is_summary, created_at)
@@ -166,9 +166,9 @@ OWNER_NAME=Lucas
   - `pairing_requests` (id UUID, platform, platform_user_id, username, pairing_code, expires_at, status, resolved_by, created_at)
   - `recovery_state` (id UUID, component, state JSONB, iteration, created_at, updated_at)
   - Índices: idx_messages_conversation, idx_messages_embedding (ivfflat), idx_agents_parent, idx_agents_status
-- [ ] 1.4: Criar `src/memory/ConversationRepository.ts` — CRUD de conversations (create, findById, findByUserId, update)
-- [ ] 1.5: Criar `src/memory/MessageRepository.ts` — CRUD de messages (create, findByConversation, findByConversationWithLimit, countTokens)
-- [ ] 1.6: Integrar migrations no startup do `src/index.ts`
+- [x] 1.4: Criar `src/memory/ConversationRepository.ts` — CRUD de conversations (create, findById, findByUserId, update)
+- [x] 1.5: Criar `src/memory/MessageRepository.ts` — CRUD de messages (create, findByConversation, findByConversationWithLimit, countTokens)
+- [x] 1.6: Integrar migrations no startup do `src/index.ts`
 
 **Critério de conclusão:** App conecta ao PostgreSQL automaticamente. Todas as tabelas são criadas no primeiro startup. CRUD dos repositories funciona.
 

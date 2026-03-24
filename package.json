@@ -18,9 +18,13 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "@types/pg": "^8.20.0",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2"
+  },
+  "dependencies": {
+    "pg": "^8.20.0"
   }
 }
