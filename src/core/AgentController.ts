@@ -12,7 +12,7 @@ import { ToolRegistry } from '../tools/ToolRegistry';
 import { ProviderFactory } from '../providers/ProviderFactory';
 import { MessageRouter } from '../gateway/MessageRouter';
 
-const DEFAULT_MODEL = 'anthropic/claude-sonnet-4';
+// Thor's brain: Claude Opus 4.6 via Anthropic API direct
 
 export class AgentController {
   private static instance: AgentController;
@@ -94,9 +94,8 @@ export class AgentController {
         },
       };
 
-      // 7. Create and run AgentLoop
-      const model = process.env.DEFAULT_MODEL || DEFAULT_MODEL;
-      const provider = ProviderFactory.create(model);
+      // 7. Create and run AgentLoop — Thor uses Anthropic direct (Opus 4.6)
+      const provider = ProviderFactory.createMain();
 
       const progressCallback = async (progressMsg: string) => {
         await this.router.sendProgress(message.platform, message.userId, progressMsg);

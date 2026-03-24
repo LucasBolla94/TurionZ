@@ -125,8 +125,8 @@ export class SubAgentManager {
     console.log(`[SubAgentManager] Running sub-agent ${agentId} (${agent.role})...`);
 
     try {
-      // Create provider with inherited model
-      const provider = ProviderFactory.create(agent.model);
+      // Create provider via OpenRouter (sub-agents use OpenRouter for model variety)
+      const provider = ProviderFactory.createForSubAgent(agent.model);
 
       // Build system prompt for sub-agent
       const systemPrompt = this.buildSubAgentPrompt(agent);
