@@ -5,6 +5,9 @@
 
 import { Database } from './infra/database';
 import { Migrations } from './infra/migrations';
+import { VaultManager } from './security/VaultManager';
+import { PersonalityEngine } from './core/PersonalityEngine';
+import { MemoryManager } from './memory/MemoryManager';
 
 async function main(): Promise<void> {
   console.log('='.repeat(60));
@@ -23,6 +26,19 @@ async function main(): Promise<void> {
     await migrations.run();
   }
 
+  // Phase 2: Vault
+  const vault = VaultManager.getInstance();
+  await vault.initialize();
+
+  // Phase 4: Personality
+  const personality = new PersonalityEngine();
+  personality.load();
+
+  // Phase 5: Memory
+  const memory = MemoryManager.getInstance();
+  await memory.initialize();
+
+  console.log('');
   console.log('[TurionZ] Thor is ready.');
 }
 

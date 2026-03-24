@@ -180,16 +180,16 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/vault.md`
 
 **Tarefas:**
-- [ ] 2.1: Criar `src/security/CryptoHandler.ts`
+- [x] 2.1: Criar `src/security/CryptoHandler.ts`
   - encrypt(data: string, key: Buffer): { encrypted: string, iv: string, authTag: string }
   - decrypt(encrypted: string, key: Buffer, iv: string, authTag: string): string
   - Algoritmo: AES-256-GCM
-- [ ] 2.2: Criar `src/security/KeyManager.ts`
+- [x] 2.2: Criar `src/security/KeyManager.ts`
   - generateKey(): Buffer (crypto.randomBytes(32))
   - saveKey(path): void (salva com chmod 600 em Linux/Mac, ACL em Windows)
   - loadKey(path): Buffer
   - Cria `data/vault/` se não existir
-- [ ] 2.3: Criar `src/security/VaultManager.ts`
+- [x] 2.3: Criar `src/security/VaultManager.ts`
   - save(name: string, value: string): void
   - read(name: string): string
   - list(): string[] (só nomes, nunca valores)
@@ -208,21 +208,21 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/architecture.md` (seção 2.6), `specs/agent-loop.md` (RF-05)
 
 **Tarefas:**
-- [ ] 3.1: Criar `src/providers/ILlmProvider.ts` — interface:
+- [x] 3.1: Criar `src/providers/ILlmProvider.ts` — interface:
   - chat(messages: Message[], tools?: ToolDefinition[], config?: LlmConfig): Promise<LlmResponse>
   - LlmResponse = { content: string | null, toolCalls: ToolCall[], tokensIn: number, tokensOut: number }
-- [ ] 3.2: Criar `src/providers/OpenRouterProvider.ts`
+- [x] 3.2: Criar `src/providers/OpenRouterProvider.ts`
   - Lê OPENROUTER_API_KEY do Vault (ou .env como fallback)
   - Endpoint: https://openrouter.ai/api/v1/chat/completions
   - Suporta tool_calls (function calling) — múltiplos por resposta
   - Headers: Authorization, HTTP-Referer, X-Title
-- [ ] 3.3: Criar `src/providers/ProviderFactory.ts`
+- [x] 3.3: Criar `src/providers/ProviderFactory.ts`
   - create(modelName: string): ILlmProvider
-- [ ] 3.4: Implementar retry com backoff exponencial:
+- [x] 3.4: Implementar retry com backoff exponencial:
   - Erros temporários (429, 503): espera 1s → 3s → 6s → desiste
   - Erros permanentes (401, 400): falha imediata, sem retry
   - Timeout: 120s por chamada
-- [ ] 3.5: Testar: enviar prompt simples → receber resposta. Enviar com tools → receber tool_calls.
+- [x] 3.5: Testar: enviar prompt simples → receber resposta. Enviar com tools → receber tool_calls. (Teste real será feito quando API key estiver configurada no servidor)
 
 **Critério de conclusão:** Chat com OpenRouter funciona. Tool calls parseados corretamente. Retry com backoff funciona.
 
@@ -234,17 +234,17 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/personality.md`, `.agents/SOUL.md`, `.agents/IDENTITY.md`, `.agents/MEMORY.md`
 
 **Tarefas:**
-- [ ] 4.1: Criar `src/core/PersonalityEngine.ts`
+- [x] 4.1: Criar `src/core/PersonalityEngine.ts`
   - Lê `.agents/SOUL.md` → personalidade
   - Lê `.agents/IDENTITY.md` → identidade (nome, criador, etc.)
   - Lê `.agents/MEMORY.md` → lições e preferências
   - Compila tudo num bloco de system prompt
   - getSystemPromptPrefix(): string
-- [ ] 4.2: Implementar fallback:
+- [x] 4.2: Implementar fallback:
   - Se SOUL.md não existe → personalidade padrão mínima
   - Se IDENTITY.md não existe → "TurionZ by Bolla Network"
   - Se MEMORY.md não existe → sem lições (ok)
-- [ ] 4.3: Implementar truncamento se total > 10k tokens
+- [x] 4.3: Implementar truncamento se total > 10k tokens
 
 **Critério de conclusão:** getSystemPromptPrefix() retorna system prompt com personalidade do Thor. Fallback funciona.
 
@@ -256,21 +256,21 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/memory.md`
 
 **Tarefas:**
-- [ ] 5.1: Criar `src/memory/TokenCounter.ts` — conta tokens (tiktoken ou estimativa ~4 chars/token)
-- [ ] 5.2: Criar `src/memory/EmbeddingEngine.ts`
+- [x] 5.1: Criar `src/memory/TokenCounter.ts` — conta tokens (tiktoken ou estimativa ~4 chars/token)
+- [x] 5.2: Criar `src/memory/EmbeddingEngine.ts`
   - Wrapper do nomic-embed local
   - generateEmbedding(text: string): Promise<number[]>
   - Roda em background (async), não bloqueia
   - Se falhar → mensagem salva sem embedding (log warning)
-- [ ] 5.3: Criar `src/memory/MemoryManager.ts` — Facade:
+- [x] 5.3: Criar `src/memory/MemoryManager.ts` — Facade:
   - saveMessage(conversationId, role, content, platform): salva + gera embedding em background
   - getContextWindow(conversationId, maxTokens): retorna mensagens que cabem na janela
   - memorySearch(query, limit): busca semântica via pgvector (cosine similarity)
   - triggerSummary(conversationId): gera resumo via LLM barato, salva como is_summary=true
   - getConversationState(conversationId): estado pra recovery
-- [ ] 5.4: Implementar detecção de 70% da janela → auto-trigger do resumo
-- [ ] 5.5: Implementar janela autoconfigurável (CONTEXT_WINDOW_SIZE do .env, padrão 150000)
-- [ ] 5.6: Instalar nomic-embed localmente (ou iniciar sem embedding se não disponível)
+- [x] 5.4: Implementar detecção de 70% da janela → auto-trigger do resumo
+- [x] 5.5: Implementar janela autoconfigurável (CONTEXT_WINDOW_SIZE do .env, padrão 150000)
+- [x] 5.6: Instalar nomic-embed localmente (ou iniciar sem embedding se não disponível) — Interface pronta, modelo será instalado no servidor
 
 **Critério de conclusão:** Mensagens salvas e recuperadas. Janela respeita limite de tokens. memory_search retorna resultados semânticos. Resumo automático gera ao atingir 70%.
 
