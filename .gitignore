@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Environment
+.env
+
+# Data (sensitive)
+data/vault/
+data/embeddings/
+
+# Temporary files
+tmp/
+
+# SQLite (legacy)
+*.db
+*.sqlite
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

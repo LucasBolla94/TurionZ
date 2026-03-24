@@ -1,0 +1,26 @@
+{
+  "name": "turionz",
+  "version": "0.1.0",
+  "description": "TurionZ (Thor) — AI Personal Agent by Bolla Network",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "turionz",
+    "bolla-network"
+  ],
+  "author": "BollaNetwork",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  }
+}
