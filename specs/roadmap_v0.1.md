@@ -468,25 +468,25 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/skill-user.md`
 
 **Tarefas:**
-- [ ] 12.1: Instalar `js-yaml` e `@types/js-yaml`
-- [ ] 12.2: Criar `src/skills/SkillLoader.ts`
+- [x] 12.1: Instalar `js-yaml` e `@types/js-yaml`
+- [x] 12.2: Criar `src/skills/SkillLoader.ts`
   - Lê todas as pastas em `.agents/skills/`
   - Extrai YAML frontmatter de SKILL.md (name, description, version, tools)
   - Retorna array de SkillMetadata
   - Hot-reload: lê do filesystem a cada mensagem (sem cache — reload instantâneo)
-- [ ] 12.3: Criar `src/skills/SkillRouter.ts`
+- [x] 12.3: Criar `src/skills/SkillRouter.ts`
   - Recebe: mensagem do usuário + lista de SkillMetadata
   - Faz chamada leve ao LLM: "Qual skill serve? Retorne JSON { skillName: string | null }"
   - Parse JSON da resposta
   - Se null → sem skill (conversa livre)
-- [ ] 12.4: Criar `src/skills/SkillExecutor.ts`
+- [x] 12.4: Criar `src/skills/SkillExecutor.ts`
   - Lê SKILL.md completo da skill identificada
   - Carrega tools exclusivas da pasta tools/ da skill
   - Injeta instruções no systemPrompt do AgentLoop
   - Registra tools exclusivas no ToolRegistry
   - Após resposta: desregistra tools exclusivas (limpa)
-- [ ] 12.5: Criar `.agents/skills/skill-creator/SKILL.md` — instruções pro sub-agent criador
-- [ ] 12.6: Integrar com AgentController (Fase 10): inserir no pipeline entre Memory e AgentLoop
+- [x] 12.5: Criar `.agents/skills/skill-creator/SKILL.md` — instruções pro sub-agent criador
+- [x] 12.6: Integrar com AgentController (Fase 10): inserir no pipeline entre Memory e AgentLoop
 
 **Critério de conclusão:** Colocar pasta de skill → SkillRouter identifica → SkillExecutor injeta → AgentLoop usa. Hot-reload funciona sem restart.
 
@@ -498,26 +498,26 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/sub-agents.md`
 
 **Tarefas:**
-- [ ] 13.1: Criar `src/agents/SubAgentManager.ts`
+- [x] 13.1: Criar `src/agents/SubAgentManager.ts`
   - createSubAgent(briefing, model, skills, criteria, dependencies[]): subAgentId
   - createSubSubAgent(parentId, briefing, role: 'worker' | 'verifier'): subSubAgentId
   - waitFor(agentId): Promise<AgentResult>
   - cancelAgent(agentId): void
   - getProgress(agentId): ProgressInfo
   - communicateResult(fromId, toId, data): void
-- [ ] 13.2: Cada sub-agent instancia seu próprio AgentLoop (reutiliza a classe)
-- [ ] 13.3: Implementar regras de hierarquia:
+- [x] 13.2: Cada sub-agent instancia seu próprio AgentLoop (reutiliza a classe)
+- [x] 13.3: Implementar regras de hierarquia:
   - TurionZ (level 0) → sub-agents ilimitados (level 1) → max 3 sub-sub-agents (level 2)
   - Herança de configs: imutável, cascata
   - Verificador obrigatório: se sub-agent não criou, sistema cria automaticamente
-- [ ] 13.4: Implementar comunicação central (via TurionZ):
+- [x] 13.4: Implementar comunicação central (via TurionZ):
   - Sub-agent A entrega → TurionZ → repassa pra Sub-agent B
-- [ ] 13.5: Implementar dependências (waitFor):
+- [x] 13.5: Implementar dependências (waitFor):
   - Sub-agent B registra que espera Sub-agent A
   - Quando A termina, TurionZ repassa resultado e B continua
-- [ ] 13.6: Salvar estado no PostgreSQL (tabelas agents, agent_communications, agent_dependencies)
-- [ ] 13.7: Notificações de progresso pro usuário via Gateway
-- [ ] 13.8: Criar tool built-in `create_sub_agent` pra o TurionZ chamar via AgentLoop
+- [x] 13.6: Salvar estado no PostgreSQL (tabelas agents, agent_communications, agent_dependencies)
+- [x] 13.7: Notificações de progresso pro usuário via Gateway
+- [x] 13.8: Criar tool built-in `create_sub_agent` pra o TurionZ chamar via AgentLoop
 
 **Critério de conclusão:** TurionZ cria sub-agent → sub-agent executa → verificador testa → resultado entregue. Comunicação e dependências funcionam.
 
@@ -529,12 +529,12 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/PRD.md` (seção 9), `specs/agent-loop.md` (RF-04)
 
 **Tarefas:**
-- [ ] 14.1: Criar `src/infra/Logger.ts`
+- [x] 14.1: Criar `src/infra/Logger.ts`
   - log(agentType, agentName, action, details, durationMs?, tokensUsed?): void
   - Salva na tabela activity_logs do PostgreSQL
   - Console: formatação legível com timestamp e cores
   - REGRA: nunca logar API keys, senhas, ou valores do Vault
-- [ ] 14.2: Integrar em todos os módulos existentes:
+- [x] 14.2: Integrar em todos os módulos existentes:
   - AgentLoop: log por rodada (thought, tool_call, observation, final_answer)
   - SubAgentManager: log de criação, conclusão, erro de agents
   - ToolRegistry: log de execução de tools
@@ -551,22 +551,22 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/recovery.md`
 
 **Tarefas:**
-- [ ] 15.1: Criar `src/infra/RecoveryManager.ts`
+- [x] 15.1: Criar `src/infra/RecoveryManager.ts`
   - Boot sequence: connect → check state → recover → notify → run
   - Salvar checkpoint a cada rodada do AgentLoop (tabela recovery_state)
-- [ ] 15.2: Criar `src/infra/IntegrityChecker.ts`
+- [x] 15.2: Criar `src/infra/IntegrityChecker.ts`
   - Verificar SOUL.md, IDENTITY.md, MEMORY.md existem e são válidos
   - Verificar skills instaladas
   - Limpar TMP de arquivos órfãos
-- [ ] 15.3: Implementar recovery de sub-agents:
+- [x] 15.3: Implementar recovery de sub-agents:
   - Status 'running' → verificar progresso → completar ou recriar
   - Status 'waiting' → resolver dependência ou cancelar
-- [ ] 15.4: Implementar safe mode: 3 crashes em 10min → modo reduzido
-- [ ] 15.5: Criar scripts de auto-start:
+- [x] 15.4: Implementar safe mode: 3 crashes em 10min → modo reduzido
+- [x] 15.5: Criar scripts de auto-start:
   - Linux: systemd service file
   - Windows: Task Scheduler XML
   - Mac: launchd plist
-- [ ] 15.6: Notificar usuário via Gateway: "TurionZ online! Retomando..."
+- [x] 15.6: Notificar usuário via Gateway: "TurionZ online! Retomando..."
 
 **Critério de conclusão:** Kill processo → restart → volta de onde parou. Notifica o usuário. Safe mode funciona.
 
@@ -578,22 +578,22 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/self-improvement.md`
 
 **Tarefas:**
-- [ ] 16.1: Criar `src/infra/SelfImprovement.ts` — orquestrador
+- [x] 16.1: Criar `src/infra/SelfImprovement.ts` — orquestrador
   - Roda todo domingo (scheduler via setInterval ou cron)
   - Coleta → Fragmentação → Análise → Verificação → Aplicação
-- [ ] 16.2: Criar `src/infra/ConversationFragmenter.ts`
+- [x] 16.2: Criar `src/infra/ConversationFragmenter.ts`
   - Se volume > 50k tokens → quebra em partes de ~20k
-- [ ] 16.3: Criar `src/infra/LessonExtractor.ts`
+- [x] 16.3: Criar `src/infra/LessonExtractor.ts`
   - Analisa cada fragmento via LLM barato (OpenRouter)
   - Gera lições categorizadas: technical, preference, pattern, tool, communication
-- [ ] 16.4: Criar `src/infra/ChangeVerifier.ts`
+- [x] 16.4: Criar `src/infra/ChangeVerifier.ts`
   - Pega mudanças da semana anterior
   - Compara métricas: menos erros? menos correções?
   - Se piorou → reverte
-- [ ] 16.5: Salvar lições na tabela lessons_learned
-- [ ] 16.6: Salvar relatório semanal na tabela weekly_reports
-- [ ] 16.7: Atualizar .agents/MEMORY.md com lições principais
-- [ ] 16.8: Sugerir ajustes sutis ao SOUL.md (com log completo)
+- [x] 16.5: Salvar lições na tabela lessons_learned
+- [x] 16.6: Salvar relatório semanal na tabela weekly_reports
+- [x] 16.7: Atualizar .agents/MEMORY.md com lições principais
+- [x] 16.8: Sugerir ajustes sutis ao SOUL.md (com log completo)
 
 **Critério de conclusão:** Análise roda automaticamente. Gera lições. Verifica mudanças anteriores. Atualiza MEMORY.md.
 
@@ -605,22 +605,22 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/gateway.md`
 
 **Tarefas:**
-- [ ] 17.1: Instalar `discord.js`, `@whiskeysockets/baileys`, `express`, `@types/express`
-- [ ] 17.2: Criar `src/gateway/adapters/discord/DiscordAdapter.ts`
+- [x] 17.1: Instalar `discord.js`, `@whiskeysockets/baileys`, `express`, `@types/express`
+- [x] 17.2: Criar `src/gateway/adapters/discord/DiscordAdapter.ts`
   - Conecta via discord.js
   - Traduz mensagens pra InternalMessage
   - Valida auth independente
   - Envia respostas (texto, chunks, arquivos)
-- [ ] 17.3: Criar `src/gateway/adapters/whatsapp/WhatsAppAdapter.ts`
+- [x] 17.3: Criar `src/gateway/adapters/whatsapp/WhatsAppAdapter.ts`
   - Conecta via Baileys (ou whatsapp-web.js)
   - Traduz mensagens pra InternalMessage
   - Valida auth independente
-- [ ] 17.4: Criar `src/gateway/adapters/api/APIRestAdapter.ts`
+- [x] 17.4: Criar `src/gateway/adapters/api/APIRestAdapter.ts`
   - Express/Fastify HTTP server
   - Autenticação via API key (do Vault)
   - Endpoints: POST /message, GET /conversations, GET /status
-- [ ] 17.5: Cada adaptador roda como serviço independente (se um cair, outros continuam)
-- [ ] 17.6: Integrar todos com MessageRouter e AuthenticationGateway
+- [x] 17.5: Cada adaptador roda como serviço independente (se um cair, outros continuam)
+- [x] 17.6: Integrar todos com MessageRouter e AuthenticationGateway
 
 **Critério de conclusão:** Enviar mensagem em Discord/WhatsApp/API → TurionZ processa → responde na mesma plataforma.
 

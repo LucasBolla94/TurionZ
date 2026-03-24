@@ -1,6 +1,6 @@
 // ============================================================
 // TurionZ (Thor) — AI Personal Agent by Bolla Network
-// Entry Point
+// Entry Point — Full v0.1
 // ============================================================
 
 import { Database } from './infra/database';
@@ -13,7 +13,14 @@ import { MemorySearchTool } from './tools/builtin/MemorySearchTool';
 import { AgentController } from './core/AgentController';
 import { AuthenticationGateway } from './security/AuthenticationGateway';
 import { PermissionManager } from './security/PermissionManager';
+import { RecoveryManager } from './infra/RecoveryManager';
+import { IntegrityChecker } from './infra/IntegrityChecker';
+import { SelfImprovement } from './infra/SelfImprovement';
+import { Logger } from './infra/Logger';
 import { TelegramInputAdapter } from './gateway/adapters/telegram/TelegramInputAdapter';
+import { DiscordAdapter } from './gateway/adapters/discord/DiscordAdapter';
+import { WhatsAppAdapter } from './gateway/adapters/whatsapp/WhatsAppAdapter';
+import { APIRestAdapter } from './gateway/adapters/api/APIRestAdapter';
 
 async function main(): Promise<void> {
   console.log('='.repeat(60));
@@ -23,7 +30,14 @@ async function main(): Promise<void> {
   console.log('='.repeat(60));
   console.log('');
 
-  // --- Fase 1: Database ---
+  const logger = Logger.getInstance();
+
+  // --- Recovery: Boot Sequence ---
+  const recovery = RecoveryManager.getInstance();
+  const integrity = new IntegrityChecker();
+  integrity.check();
+
+  // --- Database ---
   const db = Database.getInstance();
   await db.connect();
 
@@ -32,44 +46,81 @@ async function main(): Promise<void> {
     await migrations.run();
   }
 
-  // --- Fase 2: Vault ---
+  // --- Recovery: Check pending state ---
+  await recovery.runBootSequence();
+
+  // --- Vault ---
   const vault = VaultManager.getInstance();
   await vault.initialize();
 
-  // --- Fase 5: Memory ---
+  // --- Memory ---
   const memory = MemoryManager.getInstance();
   await memory.initialize();
 
-  // --- Fase 6: Tool Registry ---
+  // --- Tools ---
   const toolRegistry = ToolRegistry.getInstance();
   toolRegistry.register(new MemorySearchTool());
-  console.log(`[Tools] ${toolRegistry.count()} tools registered.`);
+  console.log(`[Tools] ${toolRegistry.count()} tool(s) registered.`);
 
-  // --- Fase 8: Authentication ---
+  // --- Authentication ---
   const auth = AuthenticationGateway.getInstance();
   if (db.isConnected()) {
     await auth.ensureOwnerRegistered('telegram');
+    await auth.ensureOwnerRegistered('discord');
   }
 
-  // --- Fase 10: Agent Controller ---
+  // --- Controller ---
   const controller = AgentController.getInstance();
   await controller.initialize();
 
-  // --- Fase 11: Permissions ---
-  const permissions = PermissionManager.getInstance();
+  // --- Permissions ---
+  PermissionManager.getInstance();
   console.log('[Permissions] Permission system ready.');
 
-  // --- Fase 9: Telegram Gateway ---
+  // --- Self-Improvement ---
+  const selfImprovement = SelfImprovement.getInstance();
+  if (!recovery.isSafeMode()) {
+    selfImprovement.startScheduler();
+  }
+
+  // --- Gateways ---
+
+  // Telegram
   const telegramToken = vault.readOrEnv('telegram_bot_token', 'TELEGRAM_BOT_TOKEN');
   if (telegramToken) {
     const telegram = new TelegramInputAdapter(telegramToken);
     await telegram.start();
   } else {
-    console.warn('[Telegram] TELEGRAM_BOT_TOKEN not set. Telegram adapter not started.');
+    console.warn('[Telegram] Bot token not configured. Skipping.');
   }
 
+  // Discord
+  const discordToken = vault.readOrEnv('discord_bot_token', 'DISCORD_BOT_TOKEN');
+  if (discordToken) {
+    const discord = new DiscordAdapter(discordToken);
+    await discord.start(discordToken);
+  } else {
+    console.warn('[Discord] Bot token not configured. Skipping.');
+  }
+
+  // WhatsApp
+  const whatsapp = new WhatsAppAdapter();
+  await whatsapp.start();
+
+  // API REST
+  const api = new APIRestAdapter();
+  await api.start();
+
+  // --- Recovery Notification ---
+  const recoveryMsg = await recovery.getRecoveryNotification();
+  if (recoveryMsg) {
+    console.log(`[Recovery] ${recoveryMsg}`);
+  }
+
+  // --- Ready ---
   console.log('');
-  console.log('[TurionZ] Thor is ready and listening.');
+  await logger.info('TurionZ', 'System startup complete', { version: '0.1.0' });
+  console.log('[TurionZ] Thor is ready and listening on all platforms.');
 }
 
 main().catch((error) => {

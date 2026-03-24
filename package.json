@@ -17,6 +17,8 @@
   "author": "BollaNetwork",
   "license": "MIT",
   "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.5.0",
     "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.20.0",
@@ -26,7 +28,10 @@
     "typescript": "^6.0.2"
   },
   "dependencies": {
+    "discord.js": "^14.25.1",
+    "express": "^5.2.1",
     "grammy": "^1.41.1",
+    "js-yaml": "^4.1.1",
     "pdf-parse": "^2.4.5",
     "pg": "^8.20.0"
   }
