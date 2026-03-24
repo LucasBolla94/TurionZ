@@ -282,23 +282,23 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/agent-loop.md` (RF-01, RF-02), `specs/skill-user.md`
 
 **Tarefas:**
-- [ ] 6.1: Criar `src/tools/BaseTool.ts` — classe abstrata:
+- [x] 6.1: Criar `src/tools/BaseTool.ts` — classe abstrata:
   - name: string
   - description: string
   - parameters: JSONSchema (pra function calling)
   - execute(args: Record<string, any>): Promise<ToolResult>
   - ToolResult = { success: boolean, output: string }
-- [ ] 6.2: Criar `src/tools/ToolRegistry.ts`:
+- [x] 6.2: Criar `src/tools/ToolRegistry.ts`:
   - register(tool: BaseTool): void
   - unregister(name: string): void
   - get(name: string): BaseTool
   - listAll(): BaseTool[]
   - toOpenRouterFormat(): ToolDefinition[] (converte pra formato de API)
-- [ ] 6.3: Criar `src/tools/ToolFactory.ts` — instancia tool por nome
-- [ ] 6.4: Criar tool built-in `src/tools/builtin/MemorySearchTool.ts`:
+- [x] 6.3: Criar `src/tools/ToolFactory.ts` — instancia tool por nome
+- [x] 6.4: Criar tool built-in `src/tools/builtin/MemorySearchTool.ts`:
   - Usa MemoryManager.memorySearch()
   - Parameters: { query: string, limit?: number }
-- [ ] 6.5: Formato de tool call output etiquetado: `"tool_name(args) → resultado"`
+- [x] 6.5: Formato de tool call output etiquetado: `"tool_name(args) → resultado"`
 
 **Critério de conclusão:** Registrar tool, listar, executar por nome, converter pra formato OpenRouter.
 
@@ -310,8 +310,8 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/agent-loop.md` (SPEC PRINCIPAL — ler COMPLETO antes de implementar)
 
 **Tarefas:**
-- [ ] 7.1: Criar `src/core/AgentLoop.ts` com método `run(input: AgentLoopInput): Promise<AgentLoopOutput>`
-- [ ] 7.2: Implementar ciclo ReAct principal:
+- [x] 7.1: Criar `src/core/AgentLoop.ts` com método `run(input: AgentLoopInput): Promise<AgentLoopOutput>`
+- [x] 7.2: Implementar ciclo ReAct principal:
   ```
   while (rodada < MAX_ITERATIONS) {
     response = await llmProvider.chat(messages, tools)
@@ -322,26 +322,26 @@ OWNER_NAME=Lucas
     }
   }
   ```
-- [ ] 7.3: Multi-tools estilo Claude Code:
+- [x] 7.3: Multi-tools estilo Claude Code:
   - Validar JSON de TODAS as tool_calls antes de executar qualquer uma
   - Se JSON inválido → devolver erro pro LLM, NÃO contar como rodada
   - Executar todas em fila (sequencial, uma após outra)
   - Se uma falha, as outras CONTINUAM
   - Cada resultado etiquetado: `"tool_name(args) → resultado"` ou `"tool_name(args) → ERRO: motivo"`
   - Limite de 5 tools por rodada — se pedir mais, executa 5 e avisa
-- [ ] 7.4: Checagem de saúde antes de cada tool:
+- [x] 7.4: Checagem de saúde antes de cada tool:
   - Rodada dentro do limite?
   - Flag de abort ativa?
   - Sistema operacional?
-- [ ] 7.5: MAX_ITERATIONS: ler do .env, fallback pra 5
-- [ ] 7.6: Retry com backoff pra erros do LLM (delega pro provider, Fase 3)
-- [ ] 7.7: Propagação de flags: input.flags → output.flags (intacto)
-- [ ] 7.8: Log estruturado a cada etapa:
+- [x] 7.5: MAX_ITERATIONS: ler do .env, fallback pra 5
+- [x] 7.6: Retry com backoff pra erros do LLM (delega pro provider, Fase 3)
+- [x] 7.7: Propagação de flags: input.flags → output.flags (intacto)
+- [x] 7.8: Log estruturado a cada etapa:
   - `[Rodada X | Xs | tool: nome / final_answer | tokens: Xin / Xout]`
-- [ ] 7.9: Placeholder pra abort check (será integrado na Fase 9):
+- [x] 7.9: Placeholder pra abort check (será integrado na Fase 9):
   - Método checkForAbort(): Promise<boolean> — retorna false por padrão
-- [ ] 7.10: Status de saída: "completed" | "max_iterations" | "aborted" | "error"
-- [ ] 7.11: Metrics de saída: { totalDuration, totalTokensIn, totalTokensOut, iterationsUsed, toolsCalled[] }
+- [x] 7.10: Status de saída: "completed" | "max_iterations" | "aborted" | "error"
+- [x] 7.11: Metrics de saída: { totalDuration, totalTokensIn, totalTokensOut, iterationsUsed, toolsCalled[] }
 
 **Critério de conclusão:** AgentLoop.run() funciona end-to-end. Processa mensagem, chama LLM, executa tools, retorna resposta. Multi-tools funciona. Logs aparecem no console.
 
@@ -353,22 +353,22 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/authentication.md`
 
 **Tarefas:**
-- [ ] 8.1: Criar `src/security/OwnerValidator.ts` — identifica Lucas pelo OWNER_TELEGRAM_ID
-- [ ] 8.2: Criar `src/security/AllowlistManager.ts` — CRUD no PostgreSQL (authorized_users)
+- [x] 8.1: Criar `src/security/OwnerValidator.ts` — identifica Lucas pelo OWNER_TELEGRAM_ID
+- [x] 8.2: Criar `src/security/AllowlistManager.ts` — CRUD no PostgreSQL (authorized_users)
   - isAuthorized(platform, userId): boolean
   - addUser(platform, userId, approvedBy): void
   - removeUser(platform, userId): void
-- [ ] 8.3: Criar `src/security/PairingFlowManager.ts`
+- [x] 8.3: Criar `src/security/PairingFlowManager.ts`
   - createPairingRequest(platform, userId): string (código TZ-XXXX-XXXX)
   - approvePairing(code): void
   - denyPairing(code): void
   - Expiração: 1 hora
   - Deny: cooldown de 24h
-- [ ] 8.4: Criar `src/security/AuthenticationGateway.ts` — orquestrador:
+- [x] 8.4: Criar `src/security/AuthenticationGateway.ts` — orquestrador:
   - authenticate(platform, userId): 'authorized' | 'pairing_initiated' | 'denied_silent'
   - Não autorizado + allowlist mode → silêncio total
   - Não autorizado + pairing mode → gera código
-- [ ] 8.5: Tokens de bot lidos do Vault (prefixo vault: no config)
+- [x] 8.5: Tokens de bot lidos do Vault (prefixo vault: no config)
 
 **Critério de conclusão:** Allowlist funciona. Pairing gera código e aprova. Não autorizados recebem silêncio total.
 
@@ -380,12 +380,12 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/telegram-input.md`, `specs/telegram-output.md`, `specs/gateway.md`
 
 **Tarefas:**
-- [ ] 9.1: Instalar `grammy` e `pdf-parse`
-- [ ] 9.2: Criar `src/gateway/MessageRouter.ts`
+- [x] 9.1: Instalar `grammy` e `pdf-parse`
+- [x] 9.2: Criar `src/gateway/MessageRouter.ts`
   - Traduz InternalMessage ↔ formato de plataforma
   - Encaminha pro AgentController
   - Recebe resposta e despacha pro adaptador correto
-- [ ] 9.3: Criar `src/gateway/adapters/telegram/TelegramInputAdapter.ts`
+- [x] 9.3: Criar `src/gateway/adapters/telegram/TelegramInputAdapter.ts`
   - Escuta: message:text, message:document, message:voice, message:audio
   - Valida whitelist via AuthenticationGateway
   - Converte pra InternalMessage
@@ -395,18 +395,18 @@ OWNER_NAME=Lucas
   - PDF: extrai texto via pdf-parse
   - MD: leitura direta
   - (Whisper/áudio = fase futura)
-- [ ] 9.4: Criar `src/gateway/adapters/telegram/TelegramOutputAdapter.ts`
+- [x] 9.4: Criar `src/gateway/adapters/telegram/TelegramOutputAdapter.ts`
   - TextOutputStrategy: < 4096 chars → ctx.reply()
   - ChunkOutputStrategy: > 4096 chars → fatia sem cortar palavras, envia sequencial (for...of)
   - FileOutputStrategy: salva .md em TMP → ctx.replyWithDocument() → deleta TMP
   - ErrorOutputStrategy: "⚠️ [mensagem amigável]" — nunca stack traces
   - ProgressOutputStrategy: "🔄 [status]" — notificações periódicas
-- [ ] 9.5: Integrar fluxo completo: Grammy → InputAdapter → MessageRouter → AgentController → AgentLoop → MessageRouter → OutputAdapter → Grammy
-- [ ] 9.6: Implementar abort: escutar mensagens novas durante processamento
+- [x] 9.5: Integrar fluxo completo: Grammy → InputAdapter → MessageRouter → AgentController → AgentLoop → MessageRouter → OutputAdapter → Grammy
+- [x] 9.6: Implementar abort: escutar mensagens novas durante processamento
   - Regex: /^(para|cancela|stop|esquece|pare)$/i
   - Se match → setar flag de abort no AgentLoop
   - Integrar com AgentLoop.checkForAbort()
-- [ ] 9.7: Implementar pairing flow no Telegram (mostrar código, notificar owner)
+- [x] 9.7: Implementar pairing flow no Telegram (mostrar código, notificar owner)
 
 **Critério de conclusão:** Mandar mensagem no Telegram → Thor responde com personalidade. Chunking funciona. PDF é processado. Whitelist bloqueia. Abort funciona.
 
@@ -418,7 +418,7 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/architecture.md` (seção 2.5), `specs/PRD.md` (seção 6.2)
 
 **Tarefas:**
-- [ ] 10.1: Criar `src/core/AgentController.ts` — pipeline principal:
+- [x] 10.1: Criar `src/core/AgentController.ts` — pipeline principal:
   ```
   async processMessage(message: InternalMessage): Promise<AgentLoopOutput> {
     1. Carregar personalidade (PersonalityEngine)
@@ -433,8 +433,8 @@ OWNER_NAME=Lucas
     10. Retornar resultado + flags
   }
   ```
-- [ ] 10.2: Implementar notificações de progresso: callback que o AgentLoop chama periodicamente
-- [ ] 10.3: Integrar com Gateway: MessageRouter chama AgentController
+- [x] 10.2: Implementar notificações de progresso: callback que o AgentLoop chama periodicamente
+- [x] 10.3: Integrar com Gateway: MessageRouter chama AgentController
 
 **Critério de conclusão:** Pipeline completo funciona end-to-end. Personalidade do Thor nas respostas. Memória persiste entre mensagens.
 
@@ -446,17 +446,17 @@ OWNER_NAME=Lucas
 **Spec de referência:** `specs/permissions.md`
 
 **Tarefas:**
-- [ ] 11.1: Criar `src/security/PermissionChecker.ts`
+- [x] 11.1: Criar `src/security/PermissionChecker.ts`
   - check(action: string): Promise<'granted' | 'denied' | 'ask_user'>
   - Busca: específico → wildcard → não encontrado
-- [ ] 11.2: Criar `src/security/PermissionManager.ts`
+- [x] 11.2: Criar `src/security/PermissionManager.ts`
   - grant(action, category, grantedBy): void
   - revoke(action): void
   - listAll(): Permission[]
-- [ ] 11.3: Classificar ações:
+- [x] 11.3: Classificar ações:
   - Livres: create_file, read_file, web_search, generate_document
   - Requerem permissão: delete_*, install_*, modify_system_*, send_external_*
-- [ ] 11.4: Integrar com AgentLoop: antes de executar tool perigosa → checar permissão
+- [x] 11.4: Integrar com AgentLoop: antes de executar tool perigosa → checar permissão
 
 **Critério de conclusão:** Tool perigosa pede permissão na primeira vez. Na segunda executa direto. Wildcard funciona.
 
