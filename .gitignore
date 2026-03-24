@@ -22,6 +22,9 @@ tmp/
 .DS_Store
 Thumbs.db
 
+# Claude Code (contains secrets/tokens)
+.claude/
+
 # IDE
 .vscode/
 .idea/
