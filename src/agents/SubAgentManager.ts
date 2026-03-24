@@ -4,6 +4,7 @@
 // ============================================================
 
 import { Database } from '../infra/database';
+import { SchemaManager } from '../infra/SchemaManager';
 import { AgentLoop } from '../core/AgentLoop';
 import { ILlmProvider } from '../providers/ILlmProvider';
 import { ProviderFactory } from '../providers/ProviderFactory';
@@ -50,8 +51,17 @@ export class SubAgentManager {
   private activeAgents: Map<string, AgentLoop> = new Map();
   private onProgress?: (agentId: string, message: string) => void;
 
+  private tablesReady: boolean = false;
+
   private constructor() {
     this.db = Database.getInstance();
+  }
+
+  private async ensureTables(): Promise<void> {
+    if (this.tablesReady) return;
+    const schema = SchemaManager.getInstance();
+    await schema.ensureTables('agents', 'agent_communications', 'agent_dependencies');
+    this.tablesReady = true;
   }
 
   static getInstance(): SubAgentManager {
@@ -68,6 +78,7 @@ export class SubAgentManager {
   // --- Create Sub-Agent ---
 
   async createSubAgent(params: SubAgentCreateParams): Promise<string> {
+    await this.ensureTables();
     const level: AgentLevel = params.parentId ? 2 : 1;
     const role = params.role || 'worker';
 

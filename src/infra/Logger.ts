@@ -4,6 +4,7 @@
 // ============================================================
 
 import { Database } from './database';
+import { SchemaManager } from './SchemaManager';
 import { AgentType, ActivityLog } from '../types';
 
 // Patterns to redact from logs
@@ -18,8 +19,16 @@ export class Logger {
   private static instance: Logger;
   private db: Database;
 
+  private tableReady: boolean = false;
+
   private constructor() {
     this.db = Database.getInstance();
+  }
+
+  private async ensureTable(): Promise<void> {
+    if (this.tableReady) return;
+    await SchemaManager.getInstance().ensureTable('activity_logs');
+    this.tableReady = true;
   }
 
   static getInstance(): Logger {
@@ -78,6 +87,7 @@ export class Logger {
     if (!this.db.isConnected()) return;
 
     try {
+      await this.ensureTable();
       const sanitizedDetails = this.redactObject(entry.details);
 
       await this.db.execute(

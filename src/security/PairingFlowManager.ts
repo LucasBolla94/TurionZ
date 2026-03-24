@@ -5,6 +5,7 @@
 
 import * as crypto from 'crypto';
 import { Database } from '../infra/database';
+import { SchemaManager } from '../infra/SchemaManager';
 import { AllowlistManager } from './AllowlistManager';
 
 const PAIRING_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
@@ -24,9 +25,17 @@ export class PairingFlowManager {
   private db: Database;
   private allowlist: AllowlistManager;
 
+  private tableReady: boolean = false;
+
   constructor() {
     this.db = Database.getInstance();
     this.allowlist = new AllowlistManager();
+  }
+
+  private async ensureTable(): Promise<void> {
+    if (this.tableReady) return;
+    await SchemaManager.getInstance().ensureTable('pairing_requests');
+    this.tableReady = true;
   }
 
   async createRequest(
@@ -35,6 +44,7 @@ export class PairingFlowManager {
     username?: string
   ): Promise<string | null> {
     if (!this.db.isConnected()) return null;
+    await this.ensureTable();
 
     // Check cooldown (denied in last 24h)
     const recentDeny = await this.db.queryOne<PairingRequest>(

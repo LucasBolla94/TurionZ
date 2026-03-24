@@ -4,6 +4,7 @@
 // ============================================================
 
 import { Database } from '../infra/database';
+import { SchemaManager } from '../infra/SchemaManager';
 import { Permission } from '../types';
 
 export type PermissionResult = 'granted' | 'denied' | 'ask_user';
@@ -32,9 +33,16 @@ const PERMISSION_CATEGORIES = new Set([
 
 export class PermissionChecker {
   private db: Database;
+  private tableReady: boolean = false;
 
   constructor() {
     this.db = Database.getInstance();
+  }
+
+  private async ensureTable(): Promise<void> {
+    if (this.tableReady) return;
+    await SchemaManager.getInstance().ensureTable('permissions');
+    this.tableReady = true;
   }
 
   async check(action: string): Promise<PermissionResult> {
@@ -55,6 +63,8 @@ export class PermissionChecker {
       // No DB = can't check permissions = ask user
       return 'ask_user';
     }
+
+    await this.ensureTable();
 
     // 1. Check specific permission (e.g., "install_nodejs")
     const specific = await this.findPermission(action);

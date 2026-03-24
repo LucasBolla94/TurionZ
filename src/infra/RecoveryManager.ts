@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Database } from './database';
+import { SchemaManager } from './SchemaManager';
 
 const TMP_DIR = path.join(process.cwd(), 'tmp');
 const AGENTS_DIR = path.join(process.cwd(), '.agents');
@@ -64,6 +65,7 @@ export class RecoveryManager {
     if (!this.db.isConnected()) return;
 
     try {
+      await SchemaManager.getInstance().ensureTable('recovery_state');
       await this.db.execute(
         `INSERT INTO recovery_state (component, state, iteration)
          VALUES ($1, $2, $3)

@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Database } from './database';
+import { SchemaManager } from './SchemaManager';
 import { ILlmProvider } from '../providers/ILlmProvider';
 import { ProviderFactory } from '../providers/ProviderFactory';
 
@@ -80,6 +81,9 @@ export class SelfImprovement {
       console.warn('[SelfImprovement] Database not connected. Skipping analysis.');
       return this.emptyReport();
     }
+
+    // Ensure tables exist on first run
+    await SchemaManager.getInstance().ensureTables('lessons_learned', 'weekly_reports');
 
     // 1. Collect data from the past week
     const conversations = await this.collectWeekData();

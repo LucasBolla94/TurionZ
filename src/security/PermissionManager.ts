@@ -4,6 +4,7 @@
 // ============================================================
 
 import { Database } from '../infra/database';
+import { SchemaManager } from '../infra/SchemaManager';
 import { PermissionChecker, PermissionResult } from './PermissionChecker';
 import { Permission } from '../types';
 
@@ -34,6 +35,7 @@ export class PermissionManager {
 
   async grant(action: string, grantedBy: string): Promise<void> {
     if (!this.db.isConnected()) return;
+    await SchemaManager.getInstance().ensureTable('permissions');
 
     const category = this.extractCategory(action);
     const isWildcard = action.endsWith('_*');
