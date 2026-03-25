@@ -11,6 +11,11 @@ import { MemoryManager } from '../memory/MemoryManager';
 import { ToolRegistry } from '../tools/ToolRegistry';
 import { ProviderFactory } from '../providers/ProviderFactory';
 import { MessageRouter } from '../gateway/MessageRouter';
+import { SkillLoader } from '../skills/SkillLoader';
+import { SkillRouter } from '../skills/SkillRouter';
+import { SkillExecutor } from '../skills/SkillExecutor';
+import { SkillToolBridge } from '../skills/SkillToolBridge';
+import { SkillWatcher } from '../skills/SkillWatcher';
 
 // Thor's brain: Claude Opus 4.6 via Anthropic API direct
 
@@ -20,6 +25,11 @@ export class AgentController {
   private memory: MemoryManager;
   private toolRegistry: ToolRegistry;
   private router: MessageRouter;
+  private skillLoader: SkillLoader;
+  private skillRouter: SkillRouter;
+  private skillExecutor: SkillExecutor;
+  private skillToolBridge: SkillToolBridge;
+  private skillWatcher: SkillWatcher;
   private activeLoops: Map<string, AgentLoop> = new Map();
 
   private constructor() {
@@ -27,6 +37,11 @@ export class AgentController {
     this.memory = MemoryManager.getInstance();
     this.toolRegistry = ToolRegistry.getInstance();
     this.router = MessageRouter.getInstance();
+    this.skillLoader = new SkillLoader();
+    this.skillRouter = new SkillRouter(ProviderFactory.createMain());
+    this.skillExecutor = new SkillExecutor(this.skillLoader);
+    this.skillToolBridge = new SkillToolBridge();
+    this.skillWatcher = new SkillWatcher(250);
   }
 
   static getInstance(): AgentController {
@@ -39,6 +54,15 @@ export class AgentController {
   async initialize(): Promise<void> {
     // Load personality
     this.personality.load();
+
+    // Start skill watcher for hot-reload (REQ-036)
+    this.skillWatcher.start(
+      this.skillLoader.getSkillsDir(),
+      () => this.skillLoader.invalidateCache()
+    );
+    // Initial skill load
+    const skills = this.skillLoader.loadAll();
+    console.log(`[Controller] Skill system initialized — ${skills.length} skills found.`);
 
     // Register message handler on router
     this.router.setMessageHandler((msg) => this.processMessage(msg));
@@ -73,13 +97,38 @@ export class AgentController {
         contextMessages = [{ role: 'user' as const, content: message.content }];
       }
 
-      // 4. Build system prompt (personality + skill if active)
-      const systemPrompt = this.buildSystemPrompt();
+      // 4. SKILL PIPELINE: Loader -> Router -> Executor (REQ-035)
+      const skills = this.skillLoader.loadAll(); // cached, updated by watcher
+      let skillPrompt = '';
+      let activeSkillName: string | null = null;
 
-      // 5. Get tools
+      if (skills.length > 0) {
+        // Router: LLM picks the right skill (or null for free conversation)
+        activeSkillName = await this.skillRouter.route(message.content, skills);
+
+        if (activeSkillName) {
+          const skillContext = this.skillExecutor.loadSkillContext(activeSkillName, skills);
+          if (skillContext) {
+            skillPrompt = this.skillExecutor.buildSkillPrompt(skillContext);
+
+            // Register skill-specific tools temporarily (REQ-037)
+            if (skillContext.toolsDir) {
+              const skillTools = this.skillToolBridge.loadSkillTools(skillContext);
+              for (const tool of skillTools) {
+                this.toolRegistry.register(tool);
+              }
+            }
+          }
+        }
+      }
+
+      // 5. Build system prompt (personality + active skill)
+      const systemPrompt = this.buildSystemPrompt(skillPrompt);
+
+      // 6. Get tools (includes skill tools if registered)
       const tools = this.toolRegistry.toDefinitions();
 
-      // 6. Build AgentLoop input
+      // 7. Build AgentLoop input
       const maxIterations = parseInt(process.env.MAX_ITERATIONS || '5', 10);
       const input: AgentLoopInput = {
         messages: contextMessages,
@@ -94,7 +143,7 @@ export class AgentController {
         },
       };
 
-      // 7. Create and run AgentLoop — Thor uses Anthropic direct (Opus 4.6)
+      // 8. Create and run AgentLoop — Thor uses Anthropic direct (Opus 4.6)
       const provider = ProviderFactory.createMain();
 
       const progressCallback = async (progressMsg: string) => {
@@ -106,9 +155,14 @@ export class AgentController {
 
       const result = await loop.run(input);
 
+      // Cleanup skill tools after loop completes (prevents tool leaking — Research Pitfall 5)
+      if (activeSkillName) {
+        this.skillToolBridge.unloadSkillTools(activeSkillName, this.toolRegistry);
+      }
+
       this.activeLoops.delete(message.userId);
 
-      // 8. Save assistant response
+      // 9. Save assistant response
       if (this.isDatabaseAvailable() && result.response) {
         await this.memory.saveMessage(conversationId, 'assistant', result.response);
       }
@@ -148,17 +202,12 @@ export class AgentController {
     return false;
   }
 
-  private buildSystemPrompt(): string {
+  private buildSystemPrompt(skillContent: string = ''): string {
     const personalityPrefix = this.personality.getSystemPromptPrefix();
-
-    // TODO: In Fase 12, skill content will be injected here
-    const skillContent = '';
-
     const parts = [personalityPrefix];
     if (skillContent) {
       parts.push(skillContent);
     }
-
     return parts.join('\n\n---\n\n');
   }
 
