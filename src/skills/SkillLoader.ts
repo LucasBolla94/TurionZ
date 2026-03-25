@@ -12,6 +12,7 @@ const SKILL_FILE = 'SKILL.md';
 
 export class SkillLoader {
   private skillsDir: string;
+  private cache: SkillMetadata[] | null = null;
 
   constructor(skillsDir?: string) {
     this.skillsDir = skillsDir || path.join(process.cwd(), '.agents', 'skills');
@@ -19,9 +20,35 @@ export class SkillLoader {
 
   /**
    * Load all skills from .agents/skills/ directory.
-   * Re-reads filesystem every time (hot-reload — no cache).
+   * Returns cached result if available; call invalidateCache() to force reload.
    */
   loadAll(): SkillMetadata[] {
+    if (this.cache !== null) {
+      return this.cache;
+    }
+    this.cache = this.scanSkills();
+    return this.cache;
+  }
+
+  /**
+   * Invalidate the cached skill list. Next loadAll() call will re-scan the filesystem.
+   */
+  invalidateCache(): void {
+    this.cache = null;
+    console.log('[SkillLoader] Cache invalidated — will reload on next access.');
+  }
+
+  /**
+   * Get the skills directory path (used by SkillWatcher).
+   */
+  getSkillsDir(): string {
+    return this.skillsDir;
+  }
+
+  /**
+   * Scan the filesystem for all skills. Internal method — use loadAll() instead.
+   */
+  private scanSkills(): SkillMetadata[] {
     if (!fs.existsSync(this.skillsDir)) {
       console.warn(`[SkillLoader] Skills directory not found: ${this.skillsDir}`);
       return [];
