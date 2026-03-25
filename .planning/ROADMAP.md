@@ -19,7 +19,7 @@
 | 9 | Telegram Gateway (Input + Output) | REQ-026, REQ-027, REQ-028, REQ-029 | done |
 | 10 | Agent Controller (Facade) | REQ-022, REQ-024, REQ-028 | done |
 | 11 | Permissions System | REQ-021, REQ-022 | done |
-| 12 | 2/2 | Complete   | 2026-03-25 |
+| 12 | 2/2 | Complete    | 2026-03-25 |
 | 13 | Sub-Agent Manager | REQ-030 to REQ-034 | planned |
 | 14 | Logger (Bolla Network) | REQ-044 | planned |
 | 15 | Recovery & Auto-Start | REQ-042, REQ-043 | planned |

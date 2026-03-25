@@ -9,5 +9,8 @@
     "plan_checker": true,
     "verifier": true
   },
-  "profile": "balanced"
+  "profile": "balanced",
+  "workflow": {
+    "_auto_chain_active": false
+  }
 }
