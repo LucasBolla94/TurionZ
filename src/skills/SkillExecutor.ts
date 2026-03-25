@@ -54,6 +54,27 @@ export class SkillExecutor {
    * Build the skill injection string for the system prompt.
    * Strips YAML frontmatter and returns clean instruction content.
    */
+  /**
+   * Load skill contexts for a sub-agent. Only returns skills that are
+   * explicitly designated by TurionZ (from AgentConfig.skills).
+   * Skills not in the allowedSkillNames list are blocked.
+   */
+  loadForSubAgent(allowedSkillNames: string[], allSkills: SkillMetadata[]): SkillContext[] {
+    const contexts: SkillContext[] = [];
+
+    for (const skillName of allowedSkillNames) {
+      const context = this.loadSkillContext(skillName, allSkills);
+      if (context) {
+        contexts.push(context);
+      } else {
+        console.warn(`[SkillExecutor] Sub-agent requested skill '${skillName}' but it was not found or not loadable.`);
+      }
+    }
+
+    console.log(`[SkillExecutor] Loaded ${contexts.length}/${allowedSkillNames.length} skills for sub-agent.`);
+    return contexts;
+  }
+
   buildSkillPrompt(context: SkillContext): string {
     // Remove YAML frontmatter
     let content = context.content;
