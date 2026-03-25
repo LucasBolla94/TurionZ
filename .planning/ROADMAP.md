@@ -19,7 +19,7 @@
 | 9 | Telegram Gateway (Input + Output) | REQ-026, REQ-027, REQ-028, REQ-029 | done |
 | 10 | Agent Controller (Facade) | REQ-022, REQ-024, REQ-028 | done |
 | 11 | Permissions System | REQ-021, REQ-022 | done |
-| 12 | Skill System (Loader + Router + Executor) | REQ-035, REQ-036, REQ-037 | in-progress |
+| 12 | Skill System (Loader + Router + Executor) | REQ-035, REQ-036, REQ-037, REQ-038, REQ-039 | in-progress |
 | 13 | Sub-Agent Manager | REQ-030 to REQ-034 | planned |
 | 14 | Logger (Bolla Network) | REQ-044 | planned |
 | 15 | Recovery & Auto-Start | REQ-042, REQ-043 | planned |
@@ -88,6 +88,11 @@
 **Goal:** Full skill pipeline. Hot-reload from .agents/skills/. Skills with own tools in any language. Sub-agents can use designated skills.
 **Success:** Drop a skill folder → recognized next message. Router picks correct skill. Executor injects into loop. Tools from skills work.
 **Spec:** specs/skill-user.md
+**Plans:** 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Infrastructure: SkillWatcher (hot-reload), ExternalTool, SkillToolBridge (cross-language tools), cached SkillLoader
+- [ ] 12-02-PLAN.md — Pipeline wiring: AgentController integration (Loader->Router->Executor), sub-agent skill access
 
 ### Phase 13: Sub-Agent Manager — planned
 **Goal:** TurionZ creates unlimited sub-agents. Each can create up to 3 sub-sub-agents. Mandatory verifier. Centralized communication. Dependency waiting.
