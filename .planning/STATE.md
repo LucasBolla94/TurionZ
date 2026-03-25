@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-03-25T18:24:00.371Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-25T18:29:56.058Z"
 progress:
   total_phases: 18
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # TurionZ — Project State
@@ -51,6 +51,8 @@ Plan: 2 of 2
 9. **Mode:** Interactive (user confirms decisions)
 10. **Personality:** Thor — professional, friendly, dark humor, straight to the point
 11. **Skill tools:** chokidar v4 for CJS compat; tool names prefixed with skill name for collision prevention
+12. **SkillRouter provider:** Using ProviderFactory.createMain() (no createCheap yet); routing should ideally use cheaper model
+13. **Skill tool lifecycle:** Tools scoped per-message — registered before AgentLoop, cleaned up after to prevent leaking
 
 ## Architecture Highlights
 
@@ -72,5 +74,5 @@ Plan: 2 of 2
 
 ## Session Continuity
 
-Last work: Completed 12-01-PLAN.md (Skill System Infrastructure)
-Next action: Execute 12-02-PLAN.md (wire skills into AgentController pipeline)
+Last work: Completed 12-02-PLAN.md (Skill Pipeline Integration)
+Next action: Phase 12 verification, then proceed to Phase 13
