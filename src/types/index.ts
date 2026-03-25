@@ -125,6 +125,13 @@ export interface SkillMetadata {
   path: string;
 }
 
+export interface SkillToolManifest {
+  name: string;
+  description: string;
+  language: string;
+  parameters: Record<string, unknown>;
+}
+
 // --- Sub-Agents ---
 
 export type AgentLevel = 0 | 1 | 2;
