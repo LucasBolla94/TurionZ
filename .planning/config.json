@@ -1,0 +1,13 @@
+{
+  "mode": "interactive",
+  "planning": {
+    "commit_docs": true,
+    "search_gitignored": false
+  },
+  "agents": {
+    "researcher": true,
+    "plan_checker": true,
+    "verifier": true
+  },
+  "profile": "balanced"
+}
