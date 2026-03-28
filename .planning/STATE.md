@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
-status: Ready to execute
-last_updated: "2026-03-28T19:54:27.801Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-28T20:20:03.230Z"
 progress:
   total_phases: 18
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # TurionZ — Project State
@@ -17,8 +17,8 @@ progress:
 
 ## Current Position
 
-Phase: 13 (sub-agent-manager) — EXECUTING
-Plan: 2 of 2
+Phase: 13 (sub-agent-manager) — COMPLETE
+Plan: 2 of 2 (all done)
 
 ## Recently Completed
 
@@ -37,7 +37,7 @@ Plan: 2 of 2
 ## In Progress
 
 - Phase 12: Skill System (Loader + Router + Executor)
-- Phase 13: Sub-Agent Manager (Plan 01 complete, Plan 02 pending)
+- Phase 13: Sub-Agent Manager ✅ (both plans complete)
 
 ## Key Decisions Made
 
@@ -56,6 +56,7 @@ Plan: 2 of 2
 13. **Skill tool lifecycle:** Tools scoped per-message — registered before AgentLoop, cleaned up after to prevent leaking
 14. **Verifier verdict parsing:** Keyword search (VERDICT: PASS/FAIL) with last-200-chars fallback; event-based dependency waiting as primary with 5s polling fallback
 15. **Agent status:** completed_with_issues for agents that pass work but fail verification after max retries
+16. **Sub-agent tools:** Model validation uses static supported list; abortUserLoop changed sync to async for sub-agent cancellation
 
 ## Architecture Highlights
 
@@ -77,5 +78,5 @@ Plan: 2 of 2
 
 ## Session Continuity
 
-Last work: Completed 13-01-PLAN.md (SubAgentManager Robustness & Metrics)
-Next action: Execute 13-02-PLAN.md (Sub-Agent Tool Integration)
+Last work: Completed 13-02-PLAN.md (Sub-Agent Tools & Controller Integration)
+Next action: Phase 13 verification or next phase
