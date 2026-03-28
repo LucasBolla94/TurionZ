@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
-status: Ready to plan
-last_updated: "2026-03-28T22:26:10.791Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-28T23:01:13.584Z"
 progress:
   total_phases: 18
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # TurionZ — Project State
@@ -17,8 +17,8 @@ progress:
 
 ## Current Position
 
-Phase: 15
-Plan: Not started
+Phase: 15 (recovery-auto-start) — EXECUTING
+Plan: 1 of 1
 
 ## Recently Completed
 
@@ -39,6 +39,7 @@ Plan: Not started
 - Phase 12: Skill System (Loader + Router + Executor)
 - Phase 13: Sub-Agent Manager ✅ (both plans complete)
 - Phase 14: Activity Logger ✅ (1 plan complete)
+- Phase 15: Recovery & Auto-Start ✅ (1 plan complete)
 
 ## Key Decisions Made
 
@@ -59,6 +60,7 @@ Plan: Not started
 15. **Agent status:** completed_with_issues for agents that pass work but fail verification after max retries
 16. **Sub-agent tools:** Model validation uses static supported list; abortUserLoop changed sync to async for sub-agent cancellation
 17. **ActivityLogger:** Separate class from Logger -- Logger handles basic console+DB, ActivityLogger handles structured batched activity tracking with 10-entry buffer and 2s flush
+18. **Recovery checkpoints:** Saved before each AgentLoop iteration using component key pattern (agent_loop:main or agent_loop:{agentId}); safe mode marks interrupted agents as failed
 
 ## Architecture Highlights
 
@@ -80,5 +82,5 @@ Plan: Not started
 
 ## Session Continuity
 
-Last work: Completed 14-01-PLAN.md (ActivityLogger Service)
-Next action: Phase 14 verification or next phase
+Last work: Completed 15-01-PLAN.md (Recovery & Auto-Start)
+Next action: Phase 15 verification or next phase
