@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
-status: Ready to plan
-last_updated: "2026-03-25T18:33:51.764Z"
+status: Ready to execute
+last_updated: "2026-03-28T19:54:27.801Z"
 progress:
   total_phases: 18
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # TurionZ — Project State
@@ -17,8 +17,8 @@ progress:
 
 ## Current Position
 
-Phase: 13
-Plan: Not started
+Phase: 13 (sub-agent-manager) — EXECUTING
+Plan: 2 of 2
 
 ## Recently Completed
 
@@ -37,6 +37,7 @@ Plan: Not started
 ## In Progress
 
 - Phase 12: Skill System (Loader + Router + Executor)
+- Phase 13: Sub-Agent Manager (Plan 01 complete, Plan 02 pending)
 
 ## Key Decisions Made
 
@@ -53,6 +54,8 @@ Plan: Not started
 11. **Skill tools:** chokidar v4 for CJS compat; tool names prefixed with skill name for collision prevention
 12. **SkillRouter provider:** Using ProviderFactory.createMain() (no createCheap yet); routing should ideally use cheaper model
 13. **Skill tool lifecycle:** Tools scoped per-message — registered before AgentLoop, cleaned up after to prevent leaking
+14. **Verifier verdict parsing:** Keyword search (VERDICT: PASS/FAIL) with last-200-chars fallback; event-based dependency waiting as primary with 5s polling fallback
+15. **Agent status:** completed_with_issues for agents that pass work but fail verification after max retries
 
 ## Architecture Highlights
 
@@ -74,5 +77,5 @@ Plan: Not started
 
 ## Session Continuity
 
-Last work: Completed 12-02-PLAN.md (Skill Pipeline Integration)
-Next action: Phase 12 verification, then proceed to Phase 13
+Last work: Completed 13-01-PLAN.md (SubAgentManager Robustness & Metrics)
+Next action: Execute 13-02-PLAN.md (Sub-Agent Tool Integration)
