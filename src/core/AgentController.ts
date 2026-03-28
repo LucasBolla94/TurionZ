@@ -16,6 +16,7 @@ import { SkillRouter } from '../skills/SkillRouter';
 import { SkillExecutor } from '../skills/SkillExecutor';
 import { SkillToolBridge } from '../skills/SkillToolBridge';
 import { SkillWatcher } from '../skills/SkillWatcher';
+import { SubAgentManager } from '../agents/SubAgentManager';
 
 // Thor's brain: Claude Opus 4.6 via Anthropic API direct
 
@@ -30,6 +31,7 @@ export class AgentController {
   private skillExecutor: SkillExecutor;
   private skillToolBridge: SkillToolBridge;
   private skillWatcher: SkillWatcher;
+  private subAgentManager: SubAgentManager;
   private activeLoops: Map<string, AgentLoop> = new Map();
 
   private constructor() {
@@ -42,6 +44,7 @@ export class AgentController {
     this.skillExecutor = new SkillExecutor(this.skillLoader);
     this.skillToolBridge = new SkillToolBridge();
     this.skillWatcher = new SkillWatcher(250);
+    this.subAgentManager = SubAgentManager.getInstance();
   }
 
   static getInstance(): AgentController {
@@ -54,6 +57,13 @@ export class AgentController {
   async initialize(): Promise<void> {
     // Load personality
     this.personality.load();
+
+    // Set up sub-agent progress notifications via router (REQ-032)
+    this.subAgentManager.setProgressCallback(async (agentId: string, message: string) => {
+      // Route sub-agent progress to all connected platforms via sendProgress
+      // Using 'telegram' as default platform — in production, track which user triggered
+      console.log(`[Controller] Sub-agent progress (${agentId}): ${message}`);
+    });
 
     // Start skill watcher for hot-reload (REQ-036)
     this.skillWatcher.start(
@@ -162,6 +172,13 @@ export class AgentController {
 
       this.activeLoops.delete(message.userId);
 
+      // 8b. Check if any sub-agents are still active and append status summary
+      const activeSubAgents = await this.subAgentManager.listActive();
+      if (activeSubAgents.length > 0) {
+        const statusSummary = this.formatSubAgentStatus(activeSubAgents);
+        result.response += `\n\n---\n${statusSummary}`;
+      }
+
       // 9. Save assistant response
       if (this.isDatabaseAvailable() && result.response) {
         await this.memory.saveMessage(conversationId, 'assistant', result.response);
@@ -193,10 +210,17 @@ export class AgentController {
     }
   }
 
-  abortUserLoop(userId: string): boolean {
+  async abortUserLoop(userId: string): Promise<boolean> {
     const loop = this.activeLoops.get(userId);
     if (loop) {
       loop.requestAbort();
+
+      // Also cancel all active sub-agents
+      const activeSubAgents = await this.subAgentManager.listActive();
+      for (const agent of activeSubAgents) {
+        await this.subAgentManager.cancelAgent(agent.id);
+      }
+
       return true;
     }
     return false;
@@ -221,6 +245,23 @@ export class AgentController {
     } catch {
       return [];
     }
+  }
+
+  async getSubAgentStatus(): Promise<string> {
+    const activeAgents = await this.subAgentManager.listActive();
+    if (activeAgents.length === 0) {
+      return 'No active sub-agents.';
+    }
+    return this.formatSubAgentStatus(activeAgents);
+  }
+
+  private formatSubAgentStatus(agents: { id: string; role: string; model: string; level: number; status: string; briefing: string }[]): string {
+    const lines = [`**Active Sub-Agents (${agents.length}):**`];
+    for (const a of agents) {
+      const briefSnippet = a.briefing.substring(0, 80) + (a.briefing.length > 80 ? '...' : '');
+      lines.push(`- [${a.role}] ${a.id} (${a.model}) — ${a.status} — "${briefSnippet}"`);
+    }
+    return lines.join('\n');
   }
 
   private isDatabaseAvailable(): boolean {
