@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  ============================================================
+  TurionZ — macOS Auto-Start (launchd)
+  Created by BollaNetwork
+
+  Installation:
+    cp scripts/autostart-mac.plist ~/Library/LaunchAgents/com.bollanetwork.turionz.plist
+    # Edit the plist to set correct paths for your system
+    launchctl load ~/Library/LaunchAgents/com.bollanetwork.turionz.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.bollanetwork.turionz.plist
+    rm ~/Library/LaunchAgents/com.bollanetwork.turionz.plist
+
+  Status:
+    launchctl list | grep turionz
+  ============================================================
+-->
+<plist version="1.0">
+<dict>
+    <!-- Service identifier -->
+    <key>Label</key>
+    <string>com.bollanetwork.turionz</string>
+
+    <!-- Command to run -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/node</string>
+        <string>/Users/YOURUSER/TurionAgent/dist/index.js</string>
+    </array>
+
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>/Users/YOURUSER/TurionAgent</string>
+
+    <!-- Environment variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>NODE_ENV</key>
+        <string>production</string>
+    </dict>
+
+    <!-- Auto-start on load (user login) -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Keep alive: restart if it crashes -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+
+    <!-- Throttle restarts (minimum 5 seconds between launches) -->
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+
+    <!-- Logging -->
+    <key>StandardOutPath</key>
+    <string>/Users/YOURUSER/TurionAgent/data/turionz-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/YOURUSER/TurionAgent/data/turionz-stderr.log</string>
+
+    <!-- Soft resource limits -->
+    <key>SoftResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>4096</integer>
+    </dict>
+</dict>
+</plist>
