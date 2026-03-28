@@ -10,6 +10,9 @@ import { PersonalityEngine } from './core/PersonalityEngine';
 import { MemoryManager } from './memory/MemoryManager';
 import { ToolRegistry } from './tools/ToolRegistry';
 import { MemorySearchTool } from './tools/builtin/MemorySearchTool';
+import { CreateSubAgentTool } from './tools/builtin/CreateSubAgentTool';
+import { CheckSubAgentTool } from './tools/builtin/CheckSubAgentTool';
+import { CommunicateSubAgentTool } from './tools/builtin/CommunicateSubAgentTool';
 import { AgentController } from './core/AgentController';
 import { AuthenticationGateway } from './security/AuthenticationGateway';
 import { PermissionManager } from './security/PermissionManager';
@@ -60,6 +63,9 @@ async function main(): Promise<void> {
   // --- Tools ---
   const toolRegistry = ToolRegistry.getInstance();
   toolRegistry.register(new MemorySearchTool());
+  toolRegistry.register(new CreateSubAgentTool());
+  toolRegistry.register(new CheckSubAgentTool());
+  toolRegistry.register(new CommunicateSubAgentTool());
   console.log(`[Tools] ${toolRegistry.count()} tool(s) registered.`);
 
   // --- Authentication ---
