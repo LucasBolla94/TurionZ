@@ -136,7 +136,7 @@ export interface SkillToolManifest {
 
 export type AgentLevel = 0 | 1 | 2;
 export type AgentRole = 'director' | 'worker' | 'verifier';
-export type AgentStatus = 'created' | 'running' | 'waiting' | 'completed' | 'failed' | 'cancelled';
+export type AgentStatus = 'created' | 'running' | 'waiting' | 'completed' | 'completed_with_issues' | 'failed' | 'cancelled';
 
 export interface AgentConfig {
   model: string;

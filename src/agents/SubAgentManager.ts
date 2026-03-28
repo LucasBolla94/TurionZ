@@ -12,6 +12,7 @@ import { ToolRegistry } from '../tools/ToolRegistry';
 import {
   AgentLoopInput,
   AgentLoopOutput,
+  AgentLoopMetrics,
   AgentConfig,
   AgentLevel,
   AgentRole,
@@ -20,6 +21,8 @@ import {
 } from '../types';
 
 const MAX_SUB_SUB_AGENTS = 3;
+const MAX_VERIFIER_RETRIES = 3;
+const MAX_AGENT_LEVELS = 3; // TurionZ(0) → sub-agent(1) → sub-sub-agent(2)
 
 interface SubAgentRecord {
   id: string;
@@ -79,7 +82,25 @@ export class SubAgentManager {
 
   async createSubAgent(params: SubAgentCreateParams): Promise<string> {
     await this.ensureTables();
-    const level: AgentLevel = params.parentId ? 2 : 1;
+
+    // Determine level based on parent
+    let level: AgentLevel;
+    if (!params.parentId) {
+      level = 1;
+    } else {
+      const parent = await this.getAgent(params.parentId);
+      if (!parent) {
+        throw new Error(`Parent agent ${params.parentId} not found.`);
+      }
+      // Block sub-sub-agents (level 2) from creating children
+      if (parent.level === 2) {
+        throw new Error(
+          `Sub-sub-agents cannot create children (max ${MAX_AGENT_LEVELS} levels: TurionZ → sub-agent → sub-sub-agent).`
+        );
+      }
+      level = (parent.level + 1) as AgentLevel;
+    }
+
     const role = params.role || 'worker';
 
     // Enforce max sub-sub-agents
@@ -175,8 +196,11 @@ export class SubAgentManager {
       // Save result
       await this.updateResult(agentId, result.response, result.status === 'completed' ? 'completed' : 'failed');
 
-      // Auto-create verifier if level 1 and role is worker
-      if (agent.level === 1 && agent.role === 'worker' && result.status === 'completed') {
+      // Save metrics to DB
+      await this.saveMetrics(agentId, result.metrics);
+
+      // Auto-create verifier for ALL workers (level 1 AND level 2), not just level 1
+      if (agent.role === 'worker' && (result.status === 'completed' || result.status === 'max_iterations')) {
         await this.ensureVerifier(agentId, agent, result.response);
       }
 
@@ -189,12 +213,13 @@ export class SubAgentManager {
     }
   }
 
-  // --- Verifier ---
+  // --- Verifier with Retry Loop ---
 
   private async ensureVerifier(
     parentId: string,
     parent: SubAgentRecord,
-    workResult: string
+    workResult: string,
+    maxRetries: number = MAX_VERIFIER_RETRIES
   ): Promise<void> {
     // Check if parent already has a verifier
     const children = await this.getChildren(parentId);
@@ -204,22 +229,118 @@ export class SubAgentManager {
 
     console.log(`[SubAgentManager] Auto-creating verifier for sub-agent ${parentId}`);
 
-    const verifierId = await this.createSubAgent({
-      parentId,
-      briefing: `You are a verifier. Review and test the following work result against these criteria:
+    let currentResult = workResult;
+    let retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      const verifierId = await this.createSubAgent({
+        parentId,
+        briefing: `You are a verifier. Review and test the following work result against these criteria:
 
 CRITERIA: ${parent.criteria}
 
 WORK RESULT:
-${workResult}
+${currentResult}
 
 Verify: Does the work meet all criteria? Are there any errors or issues?
 Respond with a clear PASS or FAIL verdict and explain why.`,
-      model: parent.model,
-      role: 'verifier',
-    });
+        model: parent.model,
+        role: 'verifier',
+      });
 
-    await this.runSubAgent(verifierId);
+      const verifierResult = await this.runSubAgent(verifierId);
+      const verdict = this.parseVerdict(verifierResult.response);
+
+      if (verdict === 'PASS') {
+        console.log(`[SubAgentManager] Verifier PASSED for sub-agent ${parentId}`);
+        return;
+      }
+
+      retryCount++;
+      console.log(
+        `[SubAgentManager] Verifier FAILED for sub-agent ${parentId} (attempt ${retryCount}/${maxRetries})`
+      );
+
+      if (retryCount >= maxRetries) {
+        // Max retries exhausted — mark parent as completed_with_issues
+        console.log(
+          `[SubAgentManager] Max verifier retries (${maxRetries}) reached for ${parentId}. Marking as completed_with_issues.`
+        );
+        await this.updateStatus(parentId, 'completed_with_issues');
+        await this.updateResult(
+          parentId,
+          currentResult + `\n\n[VERIFIER NOTE: Failed verification after ${maxRetries} attempts. Last feedback: ${verifierResult.response}]`,
+          'completed_with_issues'
+        );
+        return;
+      }
+
+      // Sub-agent corrects based on verifier feedback — re-run the worker
+      console.log(`[SubAgentManager] Re-running sub-agent ${parentId} with verifier feedback...`);
+      const correctionResult = await this.rerunWithFeedback(parentId, parent, currentResult, verifierResult.response);
+      currentResult = correctionResult.response;
+    }
+  }
+
+  private parseVerdict(response: string): 'PASS' | 'FAIL' {
+    const upper = response.toUpperCase();
+    // Look for explicit PASS/FAIL verdict
+    if (upper.includes('VERDICT: PASS') || upper.includes('VERDICT:PASS')) return 'PASS';
+    if (upper.includes('VERDICT: FAIL') || upper.includes('VERDICT:FAIL')) return 'FAIL';
+    // Fallback: check for PASS/FAIL keywords near the end
+    const lastChunk = upper.slice(-200);
+    if (lastChunk.includes('PASS')) return 'PASS';
+    return 'FAIL';
+  }
+
+  private async rerunWithFeedback(
+    agentId: string,
+    agent: SubAgentRecord,
+    previousResult: string,
+    verifierFeedback: string
+  ): Promise<AgentLoopOutput> {
+    await this.updateStatus(agentId, 'running');
+
+    const provider = ProviderFactory.createForSubAgent(agent.model);
+    const systemPrompt = this.buildSubAgentPrompt(agent);
+    const tools = ToolRegistry.getInstance().toDefinitions();
+
+    const input: AgentLoopInput = {
+      messages: [
+        { role: 'user', content: agent.briefing },
+        { role: 'assistant', content: previousResult },
+        {
+          role: 'user',
+          content: `The verifier found issues with your work:\n\n${verifierFeedback}\n\nPlease correct the issues and provide an updated result.`,
+        },
+      ],
+      systemPrompt,
+      tools,
+      flags: { requires_audio_reply: false, source_type: 'text' },
+      config: {
+        maxIterations: agent.config.maxIterations || 5,
+        llmTimeout: 120000,
+        retryAttempts: 3,
+        maxToolsPerRound: 5,
+      },
+    };
+
+    const progressCb = (msg: string) => {
+      if (this.onProgress) {
+        this.onProgress(agentId, msg);
+      }
+    };
+
+    const loop = new AgentLoop(provider, progressCb);
+    this.activeAgents.set(agentId, loop);
+
+    const result = await loop.run(input);
+    this.activeAgents.delete(agentId);
+
+    await this.updateResult(agentId, result.response, result.status === 'completed' ? 'completed' : 'failed');
+    await this.saveMetrics(agentId, result.metrics);
+
+    return result;
   }
 
   // --- Communication ---
@@ -360,11 +481,75 @@ Respond with a clear PASS or FAIL verdict and explain why.`,
   private async saveDependency(agentId: string, dependsOnId: string): Promise<void> {
     if (!this.db.isConnected()) return;
 
+    // Detect circular dependencies before inserting
+    await this.detectCircularDependency(agentId, dependsOnId);
+
     await this.db.execute(
       `INSERT INTO agent_dependencies (agent_id, depends_on_agent_id)
        VALUES ($1, $2)`,
       [agentId, dependsOnId]
     );
+  }
+
+  private async detectCircularDependency(agentId: string, dependsOnId: string): Promise<void> {
+    // Walk the dependency graph from dependsOnId upward
+    // If we find agentId in the chain → circular dependency
+    const visited = new Set<string>();
+    const chain: string[] = [agentId, dependsOnId];
+
+    let currentId = dependsOnId;
+
+    while (currentId) {
+      if (currentId === agentId) {
+        throw new Error(
+          `Circular dependency detected: ${chain.join(' → ')}`
+        );
+      }
+
+      if (visited.has(currentId)) break;
+      visited.add(currentId);
+
+      // Get what currentId depends on
+      const deps = await this.db.query<{ depends_on_agent_id: string }>(
+        `SELECT depends_on_agent_id FROM agent_dependencies WHERE agent_id = $1`,
+        [currentId]
+      );
+
+      if (deps.length === 0) break;
+
+      // Follow the first dependency (for chain reporting)
+      // But check ALL dependencies for cycles
+      for (const dep of deps) {
+        if (dep.depends_on_agent_id === agentId) {
+          chain.push(dep.depends_on_agent_id);
+          throw new Error(
+            `Circular dependency detected: ${chain.join(' → ')}`
+          );
+        }
+      }
+
+      currentId = deps[0].depends_on_agent_id;
+      chain.push(currentId);
+    }
+  }
+
+  async saveMetrics(agentId: string, metrics: AgentLoopMetrics): Promise<void> {
+    if (!this.db.isConnected()) return;
+
+    const metricsData = {
+      tokensIn: metrics.totalTokensIn,
+      tokensOut: metrics.totalTokensOut,
+      duration: metrics.totalDuration,
+      toolsCalled: metrics.toolsCalled,
+      iterations: metrics.iterationsUsed,
+    };
+
+    await this.db.execute(
+      `UPDATE agents SET metrics = $1 WHERE id = $2`,
+      [JSON.stringify(metricsData), agentId]
+    );
+
+    console.log(`[SubAgentManager] Saved metrics for agent ${agentId}: ${metrics.totalDuration}ms, ${metrics.totalTokensIn}in/${metrics.totalTokensOut}out tokens`);
   }
 
   private async waitForDependencies(agentId: string): Promise<void> {
