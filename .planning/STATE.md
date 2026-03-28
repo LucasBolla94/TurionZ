@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
-status: Ready to plan
-last_updated: "2026-03-28T20:27:50.283Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-28T21:49:47.844Z"
 progress:
   total_phases: 18
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 3
+  total_plans: 8
+  completed_plans: 5
 ---
 
 # TurionZ — Project State
@@ -17,8 +17,8 @@ progress:
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
+Phase: 14 (logger) — COMPLETE
+Plan: 1 of 1 (done)
 
 ## Recently Completed
 
@@ -38,6 +38,7 @@ Plan: Not started
 
 - Phase 12: Skill System (Loader + Router + Executor)
 - Phase 13: Sub-Agent Manager ✅ (both plans complete)
+- Phase 14: Activity Logger ✅ (1 plan complete)
 
 ## Key Decisions Made
 
@@ -57,6 +58,7 @@ Plan: Not started
 14. **Verifier verdict parsing:** Keyword search (VERDICT: PASS/FAIL) with last-200-chars fallback; event-based dependency waiting as primary with 5s polling fallback
 15. **Agent status:** completed_with_issues for agents that pass work but fail verification after max retries
 16. **Sub-agent tools:** Model validation uses static supported list; abortUserLoop changed sync to async for sub-agent cancellation
+17. **ActivityLogger:** Separate class from Logger -- Logger handles basic console+DB, ActivityLogger handles structured batched activity tracking with 10-entry buffer and 2s flush
 
 ## Architecture Highlights
 
@@ -78,5 +80,5 @@ Plan: Not started
 
 ## Session Continuity
 
-Last work: Completed 13-02-PLAN.md (Sub-Agent Tools & Controller Integration)
-Next action: Phase 13 verification or next phase
+Last work: Completed 14-01-PLAN.md (ActivityLogger Service)
+Next action: Phase 14 verification or next phase
