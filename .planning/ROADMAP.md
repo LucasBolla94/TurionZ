@@ -21,7 +21,7 @@
 | 11 | Permissions System | REQ-021, REQ-022 | done |
 | 12 | 2/2 | Complete    | 2026-03-25 |
 | 13 | 2/2 | Complete    | 2026-03-28 |
-| 14 | 1/1 | Complete   | 2026-03-28 |
+| 14 | 1/1 | Complete    | 2026-03-28 |
 | 15 | Recovery & Auto-Start | REQ-042, REQ-043 | planned |
 | 16 | Self-Improvement (Weekly Analysis) | REQ-045, REQ-046, REQ-047, REQ-048 | planned |
 | 17 | SkillCreator (Fixed Sub-Agent) | REQ-038, REQ-039 | planned |
