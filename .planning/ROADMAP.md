@@ -20,7 +20,7 @@
 | 10 | Agent Controller (Facade) | REQ-022, REQ-024, REQ-028 | done |
 | 11 | Permissions System | REQ-021, REQ-022 | done |
 | 12 | 2/2 | Complete    | 2026-03-25 |
-| 13 | 2/2 | Complete   | 2026-03-28 |
+| 13 | 2/2 | Complete    | 2026-03-28 |
 | 14 | Logger (Bolla Network) | REQ-044 | planned |
 | 15 | Recovery & Auto-Start | REQ-042, REQ-043 | planned |
 | 16 | Self-Improvement (Weekly Analysis) | REQ-045, REQ-046, REQ-047, REQ-048 | planned |
