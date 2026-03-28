@@ -5,6 +5,7 @@
 
 import { ILlmProvider } from '../providers/ILlmProvider';
 import { ToolFactory } from '../tools/ToolFactory';
+import { ActivityLogger } from '../infra/ActivityLogger';
 import {
   AgentLoopInput,
   AgentLoopOutput,
@@ -33,11 +34,15 @@ export class AgentLoop {
   private toolFactory: ToolFactory;
   private abortFlag: boolean = false;
   private onProgress?: (message: string) => void;
+  private activityLogger: ActivityLogger;
+  private agentId?: string;
 
-  constructor(provider: ILlmProvider, onProgress?: (message: string) => void) {
+  constructor(provider: ILlmProvider, onProgress?: (message: string) => void, agentId?: string) {
     this.provider = provider;
     this.toolFactory = new ToolFactory();
     this.onProgress = onProgress;
+    this.activityLogger = ActivityLogger.getInstance();
+    this.agentId = agentId;
   }
 
   requestAbort(): void {
@@ -73,6 +78,12 @@ export class AgentLoop {
 
     console.log(`[AgentLoop] Starting ReAct loop (max ${maxIterations} iterations)`);
 
+    // Log loop start
+    await this.activityLogger.logAgentLifecycle(this.agentId, 'run', {
+      maxIterations,
+      maxToolsPerRound,
+    });
+
     for (let iteration = 1; iteration <= maxIterations; iteration++) {
       // --- Health check before each iteration ---
       if (this.abortFlag) {
@@ -97,9 +108,19 @@ export class AgentLoop {
         break;
       }
 
+      const llmDuration = Date.now() - iterStart;
       metrics.totalTokensIn += response.tokensIn;
       metrics.totalTokensOut += response.tokensOut;
       metrics.iterationsUsed = iteration;
+
+      // Log LLM call
+      await this.activityLogger.logLlmCall(
+        this.agentId,
+        input.config.maxIterations ? 'main' : 'unknown',
+        response.tokensIn,
+        response.tokensOut,
+        llmDuration
+      );
 
       // --- Check if it's a final answer (no tool calls) ---
       if (response.toolCalls.length === 0) {
@@ -209,6 +230,20 @@ export class AgentLoop {
       `[AgentLoop] Loop finished — status: ${status} | ${metrics.iterationsUsed} iterations | ${metrics.totalDuration}ms | ${metrics.totalTokensIn}in/${metrics.totalTokensOut}out tokens`
     );
 
+    // Log loop completion
+    await this.activityLogger.logAgentLifecycle(
+      this.agentId,
+      status === 'completed' ? 'complete' : 'fail',
+      {
+        status,
+        iterations: metrics.iterationsUsed,
+        totalDuration: metrics.totalDuration,
+        totalTokensIn: metrics.totalTokensIn,
+        totalTokensOut: metrics.totalTokensOut,
+        toolsCalled: metrics.toolsCalled,
+      }
+    );
+
     return {
       response: finalResponse,
       flags: input.flags,
@@ -239,8 +274,19 @@ export class AgentLoop {
 
     console.log(`[AgentLoop] Executing tool: ${toolName}(${JSON.stringify(args)})`);
 
+    const toolStart = Date.now();
     const result = await this.toolFactory.executeTool(toolName, args);
+    const toolDuration = Date.now() - toolStart;
     metrics.toolsCalled.push(toolName);
+
+    // Log tool call
+    await this.activityLogger.logToolCall(
+      this.agentId,
+      toolName,
+      args,
+      result.output,
+      toolDuration
+    );
 
     const formatted = this.toolFactory.formatResult(toolName, args, result);
     console.log(`[AgentLoop]   ${formatted}`);

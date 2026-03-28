@@ -20,6 +20,7 @@ import { RecoveryManager } from './infra/RecoveryManager';
 import { IntegrityChecker } from './infra/IntegrityChecker';
 import { SelfImprovement } from './infra/SelfImprovement';
 import { Logger } from './infra/Logger';
+import { ActivityLogger } from './infra/ActivityLogger';
 import { TelegramInputAdapter } from './gateway/adapters/telegram/TelegramInputAdapter';
 import { DiscordAdapter } from './gateway/adapters/discord/DiscordAdapter';
 import { WhatsAppAdapter } from './gateway/adapters/whatsapp/WhatsAppAdapter';
@@ -34,6 +35,7 @@ async function main(): Promise<void> {
   console.log('');
 
   const logger = Logger.getInstance();
+  const activityLogger = ActivityLogger.getInstance();
 
   // --- Recovery: Boot Sequence ---
   const recovery = RecoveryManager.getInstance();
@@ -126,7 +128,20 @@ async function main(): Promise<void> {
   // --- Ready ---
   console.log('');
   await logger.info('TurionZ', 'System startup complete', { version: '0.1.0' });
+  await activityLogger.logSystemEvent('system', 'startup', { version: '0.1.0' });
   console.log('[TurionZ] Thor is ready and listening on all platforms.');
+
+  // --- Graceful Shutdown ---
+  const shutdown = async (signal: string) => {
+    console.log(`[TurionZ] Received ${signal}. Shutting down gracefully...`);
+    await activityLogger.logSystemEvent('system', 'shutdown', { signal });
+    await activityLogger.shutdown();
+    await db.disconnect();
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 main().catch((error) => {

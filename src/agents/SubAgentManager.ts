@@ -6,6 +6,7 @@
 import { EventEmitter } from 'events';
 import { Database } from '../infra/database';
 import { SchemaManager } from '../infra/SchemaManager';
+import { ActivityLogger } from '../infra/ActivityLogger';
 import { AgentLoop } from '../core/AgentLoop';
 import { ILlmProvider } from '../providers/ILlmProvider';
 import { ProviderFactory } from '../providers/ProviderFactory';
@@ -71,6 +72,7 @@ interface AgentMetricsSummary {
 export class SubAgentManager {
   private static instance: SubAgentManager;
   private db: Database;
+  private activityLogger: ActivityLogger;
   private activeAgents: Map<string, AgentLoop> = new Map();
   private onProgress?: (agentId: string, message: string) => void;
   private agentEvents: EventEmitter = new EventEmitter();
@@ -79,6 +81,7 @@ export class SubAgentManager {
 
   private constructor() {
     this.db = Database.getInstance();
+    this.activityLogger = ActivityLogger.getInstance();
     // Allow many listeners for concurrent agents waiting on dependencies
     this.agentEvents.setMaxListeners(100);
   }
@@ -160,6 +163,14 @@ export class SubAgentManager {
       `[SubAgentManager] Created ${role} sub-agent (level ${level}): ${agentId} — model: ${params.model}`
     );
 
+    // Log agent creation
+    await this.activityLogger.logAgentLifecycle(agentId, 'create', {
+      role,
+      level,
+      model: params.model,
+      parentId: params.parentId || null,
+    });
+
     return agentId;
   }
 
@@ -178,6 +189,12 @@ export class SubAgentManager {
     await this.updateStatus(agentId, 'running');
 
     console.log(`[SubAgentManager] Running sub-agent ${agentId} (${agent.role})...`);
+
+    // Log agent run start
+    await this.activityLogger.logAgentLifecycle(agentId, 'run', {
+      role: agent.role,
+      model: agent.model,
+    });
 
     try {
       // Create provider via OpenRouter (sub-agents use OpenRouter for model variety)
@@ -231,11 +248,25 @@ export class SubAgentManager {
       // Emit completion event for event-based dependency waiting
       this.agentEvents.emit(`agent:completed:${agentId}`, agent.status);
 
+      // Log agent completion
+      await this.activityLogger.logAgentLifecycle(agentId, result.status === 'completed' ? 'complete' : 'fail', {
+        status: result.status,
+        duration: result.metrics.totalDuration,
+        tokensIn: result.metrics.totalTokensIn,
+        tokensOut: result.metrics.totalTokensOut,
+      });
+
       console.log(`[SubAgentManager] Sub-agent ${agentId} finished: ${result.status}`);
       return result;
     } catch (error) {
       this.activeAgents.delete(agentId);
       await this.updateStatus(agentId, 'failed');
+
+      // Log agent failure
+      await this.activityLogger.logAgentLifecycle(agentId, 'fail', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
       // Emit completion event even on failure so waiters don't hang
       this.agentEvents.emit(`agent:completed:${agentId}`, 'failed');
       throw error;
@@ -383,6 +414,12 @@ Respond with a clear PASS or FAIL verdict and explain why.`,
       [fromId, toId, JSON.stringify(data)]
     );
 
+    // Log communication event
+    await this.activityLogger.logSystemEvent('sub_agent_manager', 'agent_communication', {
+      from: fromId,
+      to: toId,
+    });
+
     console.log(`[SubAgentManager] Communication: ${fromId} → ${toId}`);
   }
 
@@ -411,6 +448,9 @@ Respond with a clear PASS or FAIL verdict and explain why.`,
     for (const child of children) {
       await this.cancelAgent(child.id);
     }
+
+    // Log agent cancellation
+    await this.activityLogger.logAgentLifecycle(agentId, 'cancel', {});
 
     console.log(`[SubAgentManager] Cancelled agent ${agentId} and its children.`);
   }

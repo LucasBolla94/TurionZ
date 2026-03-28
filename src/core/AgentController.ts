@@ -5,6 +5,7 @@
 
 import { InternalMessage, AgentLoopOutput, AgentLoopInput, LlmMessage } from '../types';
 import { Database } from '../infra/database';
+import { ActivityLogger } from '../infra/ActivityLogger';
 import { PersonalityEngine } from './PersonalityEngine';
 import { AgentLoop } from './AgentLoop';
 import { MemoryManager } from '../memory/MemoryManager';
@@ -32,6 +33,7 @@ export class AgentController {
   private skillToolBridge: SkillToolBridge;
   private skillWatcher: SkillWatcher;
   private subAgentManager: SubAgentManager;
+  private activityLogger: ActivityLogger;
   private activeLoops: Map<string, AgentLoop> = new Map();
 
   private constructor() {
@@ -45,6 +47,7 @@ export class AgentController {
     this.skillToolBridge = new SkillToolBridge();
     this.skillWatcher = new SkillWatcher(250);
     this.subAgentManager = SubAgentManager.getInstance();
+    this.activityLogger = ActivityLogger.getInstance();
   }
 
   static getInstance(): AgentController {
@@ -77,6 +80,10 @@ export class AgentController {
     // Register message handler on router
     this.router.setMessageHandler((msg) => this.processMessage(msg));
 
+    await this.activityLogger.logSystemEvent('controller', 'initialized', {
+      skillCount: skills.length,
+    });
+
     console.log('[Controller] AgentController initialized.');
   }
 
@@ -84,6 +91,13 @@ export class AgentController {
     const startTime = Date.now();
 
     console.log(`[Controller] Processing message from ${message.platform}:${message.userId}`);
+
+    // Log message processing start
+    await this.activityLogger.logSystemEvent('controller', 'message_processing_start', {
+      platform: message.platform,
+      userId: message.userId,
+      type: message.type,
+    });
 
     try {
       // 1. Get or create conversation
@@ -117,6 +131,11 @@ export class AgentController {
         activeSkillName = await this.skillRouter.route(message.content, skills);
 
         if (activeSkillName) {
+          // Log skill routing decision
+          await this.activityLogger.logSystemEvent('controller', 'skill_routed', {
+            skill: activeSkillName,
+          });
+
           const skillContext = this.skillExecutor.loadSkillContext(activeSkillName, skills);
           if (skillContext) {
             skillPrompt = this.skillExecutor.buildSkillPrompt(skillContext);
@@ -185,6 +204,17 @@ export class AgentController {
       }
 
       const duration = Date.now() - startTime;
+
+      // Log message processing end
+      await this.activityLogger.logSystemEvent('controller', 'message_processing_end', {
+        platform: message.platform,
+        userId: message.userId,
+        status: result.status,
+        durationMs: duration,
+        tokensIn: result.metrics.totalTokensIn,
+        tokensOut: result.metrics.totalTokensOut,
+      });
+
       console.log(
         `[Controller] Message processed in ${duration}ms — status: ${result.status}`
       );
