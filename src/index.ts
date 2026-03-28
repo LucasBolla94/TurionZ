@@ -51,8 +51,8 @@ async function main(): Promise<void> {
     await migrations.run();
   }
 
-  // --- Recovery: Check pending state ---
-  await recovery.runBootSequence();
+  // --- Recovery: Full startup sequence ---
+  const startupReport = await recovery.runStartupSequence();
 
   // --- Vault ---
   const vault = VaultManager.getInstance();
@@ -135,6 +135,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string) => {
     console.log(`[TurionZ] Received ${signal}. Shutting down gracefully...`);
     await activityLogger.logSystemEvent('system', 'shutdown', { signal });
+    await recovery.saveShutdownState();
     await activityLogger.shutdown();
     await db.disconnect();
     process.exit(0);

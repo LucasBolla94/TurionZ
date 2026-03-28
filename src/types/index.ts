@@ -145,6 +145,18 @@ export interface AgentConfig {
   maxIterations: number;
 }
 
+// --- Recovery ---
+
+export interface StartupReport {
+  safeModeActive: boolean;
+  crashCount: number;
+  pendingAgents: { id: string; role: string; status: string }[];
+  recoveredCheckpoints: string[];
+  integrityIssues: string[];
+  cleanedTempFiles: number;
+  timestamp: Date;
+}
+
 // --- Permissions ---
 
 export interface Permission {

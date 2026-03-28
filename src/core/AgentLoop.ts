@@ -6,6 +6,7 @@
 import { ILlmProvider } from '../providers/ILlmProvider';
 import { ToolFactory } from '../tools/ToolFactory';
 import { ActivityLogger } from '../infra/ActivityLogger';
+import { RecoveryManager } from '../infra/RecoveryManager';
 import {
   AgentLoopInput,
   AgentLoopOutput,
@@ -35,6 +36,7 @@ export class AgentLoop {
   private abortFlag: boolean = false;
   private onProgress?: (message: string) => void;
   private activityLogger: ActivityLogger;
+  private recoveryManager: RecoveryManager;
   private agentId?: string;
 
   constructor(provider: ILlmProvider, onProgress?: (message: string) => void, agentId?: string) {
@@ -42,6 +44,7 @@ export class AgentLoop {
     this.toolFactory = new ToolFactory();
     this.onProgress = onProgress;
     this.activityLogger = ActivityLogger.getInstance();
+    this.recoveryManager = RecoveryManager.getInstance();
     this.agentId = agentId;
   }
 
@@ -84,7 +87,17 @@ export class AgentLoop {
       maxToolsPerRound,
     });
 
+    const checkpointKey = this.agentId ? `agent_loop:${this.agentId}` : 'agent_loop:main';
+
     for (let iteration = 1; iteration <= maxIterations; iteration++) {
+      // --- Save checkpoint before each iteration ---
+      await this.recoveryManager.saveCheckpoint(checkpointKey, {
+        iteration,
+        messageCount: messages.length,
+        toolsCalled: metrics.toolsCalled,
+        tokensUsed: metrics.totalTokensIn + metrics.totalTokensOut,
+      }, iteration);
+
       // --- Health check before each iteration ---
       if (this.abortFlag) {
         status = 'aborted';
@@ -243,6 +256,11 @@ export class AgentLoop {
         toolsCalled: metrics.toolsCalled,
       }
     );
+
+    // Clear checkpoint on successful completion
+    if (status === 'completed') {
+      await this.recoveryManager.clearCheckpoint(checkpointKey);
+    }
 
     return {
       response: finalResponse,
