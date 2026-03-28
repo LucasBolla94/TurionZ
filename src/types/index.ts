@@ -205,3 +205,43 @@ export interface LogQueryFilters {
   limit?: number;
   offset?: number;
 }
+
+// --- Self-Improvement ---
+
+export type LessonCategory = 'technical' | 'preference' | 'pattern' | 'tool' | 'communication';
+
+export interface Lesson {
+  id?: string;
+  category: LessonCategory;
+  lesson: string;
+  sourceConversations?: string[];
+  appliedChanges?: Record<string, unknown>;
+  appliedAt?: Date;
+  wasBeneficial?: boolean | null;
+  verifiedAt?: Date;
+  reverted?: boolean;
+  createdAt?: Date;
+}
+
+export interface WeeklyReport {
+  id?: string;
+  weekStart: Date;
+  weekEnd: Date;
+  conversationsAnalyzed: number;
+  errorsFound: number;
+  lessonsGenerated: number;
+  changesApplied: Record<string, unknown>[];
+  previousChangesVerified: ChangeVerification[];
+  modelUsed: string;
+  tokensUsed: number;
+  createdAt?: Date;
+}
+
+export type ChangeVerdict = 'beneficial' | 'harmful' | 'neutral';
+
+export interface ChangeVerification {
+  lessonId: string;
+  lesson: string;
+  verdict: ChangeVerdict;
+  reason: string;
+}
