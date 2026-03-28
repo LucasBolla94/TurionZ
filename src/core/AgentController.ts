@@ -18,6 +18,8 @@ import { SkillExecutor } from '../skills/SkillExecutor';
 import { SkillToolBridge } from '../skills/SkillToolBridge';
 import { SkillWatcher } from '../skills/SkillWatcher';
 import { SubAgentManager } from '../agents/SubAgentManager';
+import { SelfImprover } from './SelfImprover';
+import { WeeklyReport, Lesson, LessonCategory } from '../types';
 
 // Thor's brain: Claude Opus 4.6 via Anthropic API direct
 
@@ -33,6 +35,7 @@ export class AgentController {
   private skillToolBridge: SkillToolBridge;
   private skillWatcher: SkillWatcher;
   private subAgentManager: SubAgentManager;
+  private selfImprover: SelfImprover;
   private activityLogger: ActivityLogger;
   private activeLoops: Map<string, AgentLoop> = new Map();
 
@@ -47,6 +50,7 @@ export class AgentController {
     this.skillToolBridge = new SkillToolBridge();
     this.skillWatcher = new SkillWatcher(250);
     this.subAgentManager = SubAgentManager.getInstance();
+    this.selfImprover = SelfImprover.getInstance();
     this.activityLogger = ActivityLogger.getInstance();
   }
 
@@ -151,8 +155,8 @@ export class AgentController {
         }
       }
 
-      // 5. Build system prompt (personality + active skill)
-      const systemPrompt = this.buildSystemPrompt(skillPrompt);
+      // 5. Build system prompt (personality + lessons + active skill)
+      const systemPrompt = await this.buildSystemPromptWithLessons(skillPrompt);
 
       // 6. Get tools (includes skill tools if registered)
       const tools = this.toolRegistry.toDefinitions();
@@ -254,6 +258,41 @@ export class AgentController {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Get the most recent weekly self-analysis report.
+   * Thor can share this with the user on request.
+   */
+  async getWeeklyReport(): Promise<WeeklyReport | null> {
+    return this.selfImprover.getLastReport();
+  }
+
+  /**
+   * Get lessons learned, optionally filtered by category.
+   */
+  async getLessons(category?: LessonCategory): Promise<Lesson[]> {
+    return this.selfImprover.getLessons(category);
+  }
+
+  private async buildSystemPromptWithLessons(skillContent: string = ''): Promise<string> {
+    const personalityPrefix = this.personality.getSystemPromptPrefix();
+    const parts = [personalityPrefix];
+
+    // Inject recent lessons from self-improvement analysis
+    try {
+      const lessonsContext = await this.selfImprover.getLessonsForContext(10);
+      if (lessonsContext) {
+        parts.push(lessonsContext);
+      }
+    } catch {
+      // Non-fatal — lessons are supplementary context
+    }
+
+    if (skillContent) {
+      parts.push(skillContent);
+    }
+    return parts.join('\n\n---\n\n');
   }
 
   private buildSystemPrompt(skillContent: string = ''): string {

@@ -18,7 +18,7 @@ import { AuthenticationGateway } from './security/AuthenticationGateway';
 import { PermissionManager } from './security/PermissionManager';
 import { RecoveryManager } from './infra/RecoveryManager';
 import { IntegrityChecker } from './infra/IntegrityChecker';
-import { SelfImprovement } from './infra/SelfImprovement';
+import { SelfImprover } from './core/SelfImprover';
 import { Logger } from './infra/Logger';
 import { ActivityLogger } from './infra/ActivityLogger';
 import { TelegramInputAdapter } from './gateway/adapters/telegram/TelegramInputAdapter';
@@ -86,9 +86,9 @@ async function main(): Promise<void> {
   console.log('[Permissions] Permission system ready.');
 
   // --- Self-Improvement ---
-  const selfImprovement = SelfImprovement.getInstance();
+  const selfImprover = SelfImprover.getInstance();
   if (!recovery.isSafeMode()) {
-    selfImprovement.startScheduler();
+    selfImprover.scheduleWeeklyAnalysis();
   }
 
   // --- Gateways ---
@@ -135,6 +135,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string) => {
     console.log(`[TurionZ] Received ${signal}. Shutting down gracefully...`);
     await activityLogger.logSystemEvent('system', 'shutdown', { signal });
+    selfImprover.stopScheduler();
     await recovery.saveShutdownState();
     await activityLogger.shutdown();
     await db.disconnect();
