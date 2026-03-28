@@ -169,3 +169,27 @@ export interface ActivityLog {
   durationMs?: number;
   tokensUsed?: number;
 }
+
+// --- Activity Logger (Structured Logging) ---
+
+export interface ActivityLogEntry {
+  agentId?: string;
+  component: string; // 'agent_loop' | 'sub_agent_manager' | 'controller' | 'gateway' | 'system'
+  action: string;
+  details: Record<string, unknown>;
+  model?: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  durationMs?: number;
+  createdAt?: Date;
+}
+
+export interface LogQueryFilters {
+  component?: string;
+  agentId?: string;
+  action?: string;
+  fromDate?: Date;
+  toDate?: Date;
+  limit?: number;
+  offset?: number;
+}

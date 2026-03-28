@@ -72,14 +72,22 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
   activity_logs: [
     `CREATE TABLE IF NOT EXISTS activity_logs (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-      agent_type VARCHAR NOT NULL,
-      agent_name VARCHAR NOT NULL,
+      agent_id UUID,
+      agent_type VARCHAR NOT NULL DEFAULT 'turionz',
+      agent_name VARCHAR NOT NULL DEFAULT 'system',
+      component VARCHAR NOT NULL,
       action VARCHAR NOT NULL,
-      details JSONB,
+      details JSONB NOT NULL DEFAULT '{}',
+      model VARCHAR,
+      tokens_in INTEGER,
+      tokens_out INTEGER,
       duration_ms INTEGER,
       tokens_used INTEGER,
       created_at TIMESTAMP DEFAULT NOW()
     )`,
+    `CREATE INDEX IF NOT EXISTS idx_activity_logs_agent ON activity_logs(agent_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_activity_logs_component ON activity_logs(component)`,
+    `CREATE INDEX IF NOT EXISTS idx_activity_logs_created ON activity_logs(created_at)`,
   ],
 
   // --- Self-Improvement Module ---
