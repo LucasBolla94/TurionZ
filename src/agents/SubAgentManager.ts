@@ -3,6 +3,7 @@
 // Created by BollaNetwork
 // ============================================================
 
+import { EventEmitter } from 'events';
 import { Database } from '../infra/database';
 import { SchemaManager } from '../infra/SchemaManager';
 import { AgentLoop } from '../core/AgentLoop';
@@ -23,6 +24,7 @@ import {
 const MAX_SUB_SUB_AGENTS = 3;
 const MAX_VERIFIER_RETRIES = 3;
 const MAX_AGENT_LEVELS = 3; // TurionZ(0) → sub-agent(1) → sub-sub-agent(2)
+const DEFAULT_DEPENDENCY_TIMEOUT = 300000; // 5 minutes
 
 interface SubAgentRecord {
   id: string;
@@ -48,16 +50,37 @@ interface SubAgentCreateParams {
   parentId?: string;
 }
 
+interface AgentTreeNode {
+  id: string;
+  role: AgentRole;
+  model: string;
+  level: AgentLevel;
+  status: AgentStatus;
+  children: AgentTreeNode[];
+  metrics?: AgentMetricsSummary | null;
+}
+
+interface AgentMetricsSummary {
+  tokensIn: number;
+  tokensOut: number;
+  duration: number;
+  toolsCalled: string[];
+  iterations: number;
+}
+
 export class SubAgentManager {
   private static instance: SubAgentManager;
   private db: Database;
   private activeAgents: Map<string, AgentLoop> = new Map();
   private onProgress?: (agentId: string, message: string) => void;
+  private agentEvents: EventEmitter = new EventEmitter();
 
   private tablesReady: boolean = false;
 
   private constructor() {
     this.db = Database.getInstance();
+    // Allow many listeners for concurrent agents waiting on dependencies
+    this.agentEvents.setMaxListeners(100);
   }
 
   private async ensureTables(): Promise<void> {
@@ -179,10 +202,11 @@ export class SubAgentManager {
         },
       };
 
-      // Run the agent loop
+      // Run the agent loop with detailed progress tracking
       const progressCb = (msg: string) => {
+        const detailedMsg = `Sub-agent ${agent.role} (${agent.model}): ${msg}`;
         if (this.onProgress) {
-          this.onProgress(agentId, msg);
+          this.onProgress(agentId, detailedMsg);
         }
       };
 
@@ -204,11 +228,16 @@ export class SubAgentManager {
         await this.ensureVerifier(agentId, agent, result.response);
       }
 
+      // Emit completion event for event-based dependency waiting
+      this.agentEvents.emit(`agent:completed:${agentId}`, agent.status);
+
       console.log(`[SubAgentManager] Sub-agent ${agentId} finished: ${result.status}`);
       return result;
     } catch (error) {
       this.activeAgents.delete(agentId);
       await this.updateStatus(agentId, 'failed');
+      // Emit completion event even on failure so waiters don't hang
+      this.agentEvents.emit(`agent:completed:${agentId}`, 'failed');
       throw error;
     }
   }
@@ -462,7 +491,7 @@ Respond with a clear PASS or FAIL verdict and explain why.`,
   private async updateStatus(agentId: string, status: AgentStatus): Promise<void> {
     if (!this.db.isConnected()) return;
 
-    const completedAt = ['completed', 'failed', 'cancelled'].includes(status) ? 'NOW()' : 'NULL';
+    const completedAt = ['completed', 'completed_with_issues', 'failed', 'cancelled'].includes(status) ? 'NOW()' : 'NULL';
     await this.db.execute(
       `UPDATE agents SET status = $1, completed_at = ${completedAt} WHERE id = $2`,
       [status, agentId]
@@ -552,7 +581,7 @@ Respond with a clear PASS or FAIL verdict and explain why.`,
     console.log(`[SubAgentManager] Saved metrics for agent ${agentId}: ${metrics.totalDuration}ms, ${metrics.totalTokensIn}in/${metrics.totalTokensOut}out tokens`);
   }
 
-  private async waitForDependencies(agentId: string): Promise<void> {
+  private async waitForDependencies(agentId: string, timeout: number = DEFAULT_DEPENDENCY_TIMEOUT): Promise<void> {
     if (!this.db.isConnected()) return;
 
     const deps = await this.db.query<{ depends_on_agent_id: string; resolved: boolean }>(
@@ -560,26 +589,149 @@ Respond with a clear PASS or FAIL verdict and explain why.`,
       [agentId]
     );
 
-    for (const dep of deps) {
-      if (dep.resolved) continue;
+    const pendingDeps = deps.filter(d => !d.resolved);
+    if (pendingDeps.length === 0) return;
 
-      // Poll until dependency completes (max 5 min)
-      const maxWait = 300000;
-      const startTime = Date.now();
+    console.log(`[SubAgentManager] Agent ${agentId} waiting for ${pendingDeps.length} dependencies...`);
+    await this.updateStatus(agentId, 'waiting');
 
-      while (Date.now() - startTime < maxWait) {
-        const depAgent = await this.getAgent(dep.depends_on_agent_id);
-        if (depAgent && ['completed', 'failed', 'cancelled'].includes(depAgent.status)) {
-          await this.db.execute(
-            `UPDATE agent_dependencies SET resolved = TRUE, resolved_at = NOW()
-             WHERE agent_id = $1 AND depends_on_agent_id = $2`,
-            [agentId, dep.depends_on_agent_id]
-          );
-          break;
-        }
-        await new Promise(resolve => setTimeout(resolve, 2000));
+    for (const dep of pendingDeps) {
+      // First check if already completed (fast path)
+      const depAgent = await this.getAgent(dep.depends_on_agent_id);
+      if (depAgent && this.isTerminalStatus(depAgent.status)) {
+        await this.resolveDependency(agentId, dep.depends_on_agent_id);
+        continue;
       }
+
+      // Event-based waiting with polling fallback
+      await this.waitForAgentCompletion(dep.depends_on_agent_id, timeout);
+      await this.resolveDependency(agentId, dep.depends_on_agent_id);
     }
+  }
+
+  private isTerminalStatus(status: AgentStatus): boolean {
+    return ['completed', 'completed_with_issues', 'failed', 'cancelled'].includes(status);
+  }
+
+  private waitForAgentCompletion(depAgentId: string, timeout: number): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      let resolved = false;
+
+      // Event listener (primary mechanism)
+      const onComplete = () => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeoutTimer);
+        clearInterval(pollTimer);
+        resolve();
+      };
+
+      this.agentEvents.once(`agent:completed:${depAgentId}`, onComplete);
+
+      // Timeout guard
+      const timeoutTimer = setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        this.agentEvents.removeListener(`agent:completed:${depAgentId}`, onComplete);
+        clearInterval(pollTimer);
+        reject(new Error(`Dependency wait timeout: agent ${depAgentId} did not complete within ${timeout / 1000}s`));
+      }, timeout);
+
+      // Polling fallback (every 5s) in case event was missed
+      const pollTimer = setInterval(async () => {
+        if (resolved) {
+          clearInterval(pollTimer);
+          return;
+        }
+        try {
+          const agent = await this.getAgent(depAgentId);
+          if (agent && this.isTerminalStatus(agent.status)) {
+            onComplete();
+          }
+        } catch {
+          // Ignore poll errors — event or timeout will handle
+        }
+      }, 5000);
+    });
+  }
+
+  private async resolveDependency(agentId: string, dependsOnId: string): Promise<void> {
+    await this.db.execute(
+      `UPDATE agent_dependencies SET resolved = TRUE, resolved_at = NOW()
+       WHERE agent_id = $1 AND depends_on_agent_id = $2`,
+      [agentId, dependsOnId]
+    );
+  }
+
+  // --- Agent Tree & Metrics ---
+
+  async getAgentTree(rootId?: string): Promise<AgentTreeNode[]> {
+    if (!this.db.isConnected()) return [];
+
+    // Get root-level agents (level 1, no parent) or specific root
+    let roots: SubAgentRecord[];
+    if (rootId) {
+      const agent = await this.getAgent(rootId);
+      roots = agent ? [agent] : [];
+    } else {
+      roots = await this.db.query<SubAgentRecord>(
+        'SELECT * FROM agents WHERE parent_id IS NULL ORDER BY created_at'
+      );
+    }
+
+    const buildTree = async (agent: SubAgentRecord): Promise<AgentTreeNode> => {
+      const children = await this.getChildren(agent.id);
+      const childNodes = await Promise.all(children.map(c => buildTree(c)));
+      const metrics = await this.getStoredMetrics(agent.id);
+
+      return {
+        id: agent.id,
+        role: agent.role,
+        model: agent.model,
+        level: agent.level,
+        status: agent.status,
+        children: childNodes,
+        metrics,
+      };
+    };
+
+    return Promise.all(roots.map(r => buildTree(r)));
+  }
+
+  async getAgentMetrics(agentId: string): Promise<{ own: AgentMetricsSummary | null; aggregated: AgentMetricsSummary }> {
+    const own = await this.getStoredMetrics(agentId);
+
+    // Aggregate with children
+    const aggregated: AgentMetricsSummary = {
+      tokensIn: own?.tokensIn || 0,
+      tokensOut: own?.tokensOut || 0,
+      duration: own?.duration || 0,
+      toolsCalled: own?.toolsCalled ? [...own.toolsCalled] : [],
+      iterations: own?.iterations || 0,
+    };
+
+    const children = await this.getChildren(agentId);
+    for (const child of children) {
+      const childMetrics = await this.getAgentMetrics(child.id);
+      aggregated.tokensIn += childMetrics.aggregated.tokensIn;
+      aggregated.tokensOut += childMetrics.aggregated.tokensOut;
+      aggregated.duration += childMetrics.aggregated.duration;
+      aggregated.toolsCalled.push(...childMetrics.aggregated.toolsCalled);
+      aggregated.iterations += childMetrics.aggregated.iterations;
+    }
+
+    return { own, aggregated };
+  }
+
+  private async getStoredMetrics(agentId: string): Promise<AgentMetricsSummary | null> {
+    if (!this.db.isConnected()) return null;
+
+    const row = await this.db.queryOne<{ metrics: AgentMetricsSummary | null }>(
+      'SELECT metrics FROM agents WHERE id = $1',
+      [agentId]
+    );
+
+    return row?.metrics || null;
   }
 
   private buildSubAgentPrompt(agent: SubAgentRecord): string {
