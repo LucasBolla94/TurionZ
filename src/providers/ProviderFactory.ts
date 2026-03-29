@@ -12,6 +12,7 @@ import { OpenRouterProvider } from './OpenRouterProvider';
 import { VaultManager } from '../security/VaultManager';
 
 const DEFAULT_MAIN_MODEL = 'claude-opus-4-6';
+const DEFAULT_SUB_AGENT_MODEL = 'google/gemini-2.5-flash-preview';
 
 export class ProviderFactory {
   /**
@@ -38,7 +39,7 @@ export class ProviderFactory {
    * Uses OpenRouter for model variety and cost optimization.
    * TurionZ chooses the best model per task.
    */
-  static createForSubAgent(model: string): ILlmProvider {
+  static createForSubAgent(model?: string): ILlmProvider {
     const vault = VaultManager.getInstance();
     const apiKey = vault.readOrEnv('openrouter_api_key', 'OPENROUTER_API_KEY');
 
@@ -48,8 +49,9 @@ export class ProviderFactory {
       );
     }
 
-    console.log(`[ProviderFactory] Sub-agent provider: OpenRouter (${model})`);
-    return new OpenRouterProvider(apiKey, model);
+    const selectedModel = model || process.env.SUB_AGENT_DEFAULT_MODEL || DEFAULT_SUB_AGENT_MODEL;
+    console.log(`[ProviderFactory] Sub-agent provider: OpenRouter (${selectedModel})`);
+    return new OpenRouterProvider(apiKey, selectedModel);
   }
 
   /**

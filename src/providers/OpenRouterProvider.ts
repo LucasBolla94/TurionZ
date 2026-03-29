@@ -9,7 +9,7 @@ import { LlmMessage, LlmResponse, LlmConfig, ToolDefinition, ToolCall } from '..
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 const DEFAULT_CONFIG: LlmConfig = {
-  model: 'anthropic/claude-sonnet-4',
+  model: 'google/gemini-2.5-flash-preview',
   temperature: 0.7,
   maxTokens: 4096,
   timeout: 120000,
