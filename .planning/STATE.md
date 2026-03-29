@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
-status: Ready to plan
-last_updated: "2026-03-28T23:10:47.189Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-28T23:58:16.408Z"
 progress:
   total_phases: 18
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # TurionZ — Project State
@@ -17,8 +17,8 @@ progress:
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
+Phase: 16 (self-improvement) — COMPLETE
+Plan: 1 of 1 (done)
 
 ## Recently Completed
 
@@ -40,6 +40,7 @@ Plan: Not started
 - Phase 13: Sub-Agent Manager ✅ (both plans complete)
 - Phase 14: Activity Logger ✅ (1 plan complete)
 - Phase 15: Recovery & Auto-Start ✅ (1 plan complete)
+- Phase 16: Self-Improvement ✅ (1 plan complete)
 
 ## Key Decisions Made
 
@@ -61,6 +62,8 @@ Plan: Not started
 16. **Sub-agent tools:** Model validation uses static supported list; abortUserLoop changed sync to async for sub-agent cancellation
 17. **ActivityLogger:** Separate class from Logger -- Logger handles basic console+DB, ActivityLogger handles structured batched activity tracking with 10-entry buffer and 2s flush
 18. **Recovery checkpoints:** Saved before each AgentLoop iteration using component key pattern (agent_loop:main or agent_loop:{agentId}); safe mode marks interrupted agents as failed
+19. **Self-improvement model:** Configurable via ANALYSIS_MODEL env var (default: meta-llama/llama-3.1-8b-instruct); scheduler uses hourly check with recovery_state persistence
+20. **Lessons in system prompt:** SelfImprover.getLessonsForContext() injects up to 10 recent lessons into every AgentController conversation
 
 ## Architecture Highlights
 
@@ -82,5 +85,5 @@ Plan: Not started
 
 ## Session Continuity
 
-Last work: Completed 15-01-PLAN.md (Recovery & Auto-Start)
-Next action: Phase 15 verification or next phase
+Last work: Completed 16-01-PLAN.md (Self-Improvement Weekly Analysis)
+Next action: Phase 16 verification or next phase
