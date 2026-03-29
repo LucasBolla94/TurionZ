@@ -75,7 +75,18 @@ export class AgentController {
     // Start skill watcher for hot-reload (REQ-036)
     this.skillWatcher.start(
       this.skillLoader.getSkillsDir(),
-      () => this.skillLoader.invalidateCache()
+      () => {
+        const previousCount = this.skillLoader.loadAll().length;
+        this.skillLoader.invalidateCache();
+        const newCount = this.skillLoader.loadAll().length;
+        if (newCount > previousCount) {
+          this.activityLogger.logSystemEvent('controller', 'skill_created', {
+            previousCount,
+            newCount,
+          }).catch(() => { /* non-fatal */ });
+          console.log(`[Controller] New skill detected via hot-reload (${previousCount} -> ${newCount}).`);
+        }
+      }
     );
     // Initial skill load
     const skills = this.skillLoader.loadAll();

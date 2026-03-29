@@ -3,6 +3,8 @@
 // Entry Point — Full v0.1
 // ============================================================
 
+import * as fs from 'fs';
+import * as path from 'path';
 import { Database } from './infra/database';
 import { Migrations } from './infra/migrations';
 import { VaultManager } from './security/VaultManager';
@@ -13,6 +15,8 @@ import { MemorySearchTool } from './tools/builtin/MemorySearchTool';
 import { CreateSubAgentTool } from './tools/builtin/CreateSubAgentTool';
 import { CheckSubAgentTool } from './tools/builtin/CheckSubAgentTool';
 import { CommunicateSubAgentTool } from './tools/builtin/CommunicateSubAgentTool';
+import { CreateSkillTool } from './tools/builtin/CreateSkillTool';
+import { SkillLoader } from './skills/SkillLoader';
 import { AgentController } from './core/AgentController';
 import { AuthenticationGateway } from './security/AuthenticationGateway';
 import { PermissionManager } from './security/PermissionManager';
@@ -64,11 +68,44 @@ async function main(): Promise<void> {
 
   // --- Tools ---
   const toolRegistry = ToolRegistry.getInstance();
+  const skillLoader = new SkillLoader();
   toolRegistry.register(new MemorySearchTool());
   toolRegistry.register(new CreateSubAgentTool());
   toolRegistry.register(new CheckSubAgentTool());
   toolRegistry.register(new CommunicateSubAgentTool());
+  toolRegistry.register(new CreateSkillTool(skillLoader));
   console.log(`[Tools] ${toolRegistry.count()} tool(s) registered.`);
+
+  // --- Ensure skill-creator default skill exists ---
+  const skillCreatorDir = path.join(process.cwd(), '.agents', 'skills', 'skill-creator');
+  if (!fs.existsSync(path.join(skillCreatorDir, 'SKILL.md'))) {
+    fs.mkdirSync(skillCreatorDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(skillCreatorDir, 'SKILL.md'),
+      [
+        '---',
+        'name: skill-creator',
+        'description: Creates new skills for TurionZ — handles SKILL.md, tools, templates, testing, and installation',
+        'version: 1.0',
+        'author: BollaNetwork',
+        'tools: []',
+        'languages:',
+        '  - typescript',
+        '  - python',
+        '---',
+        '',
+        '# Skill Creator Instructions',
+        '',
+        'You are the Skill Creator. When the user or TurionZ needs a new skill:',
+        '1. Ask what the skill should do (if not clear)',
+        '2. Use the `create_skill` tool to create it',
+        '3. Confirm the skill was installed and is ready to use',
+        '4. Explain to the user what the new skill can do',
+      ].join('\n'),
+      'utf8'
+    );
+    console.log('[Skills] Created default skill-creator skill.');
+  }
 
   // --- Authentication ---
   const auth = AuthenticationGateway.getInstance();
