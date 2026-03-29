@@ -125,6 +125,25 @@ export interface SkillMetadata {
   path: string;
 }
 
+// --- Skill Creator ---
+
+export interface SkillCreateRequest {
+  name: string;
+  description: string;
+  purpose: string;
+  tools?: string[];
+  languages?: string[];
+}
+
+export interface SkillCreateResult {
+  success: boolean;
+  skillName: string;
+  path: string;
+  metadata?: SkillMetadata;
+  errors?: string[];
+  durationMs: number;
+}
+
 export interface SkillToolManifest {
   name: string;
   description: string;
