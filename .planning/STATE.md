@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v0.1
 milestone_name: milestone
-status: Ready to plan
-last_updated: "2026-03-29T00:04:56.017Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-29T00:18:02.685Z"
 progress:
   total_phases: 18
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # TurionZ — Project State
@@ -17,8 +17,8 @@ progress:
 
 ## Current Position
 
-Phase: 17
-Plan: Not started
+Phase: 17 (skill-creator) — COMPLETE
+Plan: 1 of 1 (done)
 
 ## Recently Completed
 
@@ -36,11 +36,12 @@ Plan: Not started
 
 ## In Progress
 
-- Phase 12: Skill System (Loader + Router + Executor)
+- Phase 12: Skill System (Loader + Router + Executor) ✅
 - Phase 13: Sub-Agent Manager ✅ (both plans complete)
 - Phase 14: Activity Logger ✅ (1 plan complete)
 - Phase 15: Recovery & Auto-Start ✅ (1 plan complete)
 - Phase 16: Self-Improvement ✅ (1 plan complete)
+- Phase 17: Skill Creator ✅ (1 plan complete)
 
 ## Key Decisions Made
 
@@ -64,6 +65,8 @@ Plan: Not started
 18. **Recovery checkpoints:** Saved before each AgentLoop iteration using component key pattern (agent_loop:main or agent_loop:{agentId}); safe mode marks interrupted agents as failed
 19. **Self-improvement model:** Configurable via ANALYSIS_MODEL env var (default: meta-llama/llama-3.1-8b-instruct); scheduler uses hourly check with recovery_state persistence
 20. **Lessons in system prompt:** SelfImprover.getLessonsForContext() injects up to 10 recent lessons into every AgentController conversation
+21. **SkillCreator:** Uses SkillLoader directly for cache invalidation and verification; CreateSkillTool receives SkillLoader via constructor injection for testability
+22. **Default skill-creator:** SKILL.md bootstrapped on first run in index.ts if missing — ensures skill-creation capability always available
 
 ## Architecture Highlights
 
@@ -85,5 +88,5 @@ Plan: Not started
 
 ## Session Continuity
 
-Last work: Completed 16-01-PLAN.md (Self-Improvement Weekly Analysis)
-Next action: Phase 16 verification or next phase
+Last work: Completed 17-01-PLAN.md (SkillCreator Fixed Sub-Agent)
+Next action: Phase 17 verification or next phase

@@ -24,7 +24,7 @@
 | 14 | 1/1 | Complete    | 2026-03-28 |
 | 15 | 1/1 | Complete    | 2026-03-28 |
 | 16 | 1/1 | Complete    | 2026-03-29 |
-| 17 | SkillCreator (Fixed Sub-Agent) | REQ-038, REQ-039 | planned |
+| 17 | 1/1 | Complete   | 2026-03-29 |
 | 18 | Integration & E2E Testing | All REQs | planned |
 
 ## Phase Details
