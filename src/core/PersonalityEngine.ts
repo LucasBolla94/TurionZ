@@ -50,6 +50,14 @@ You have tools that let you ACT in the real world. ALWAYS use the right tool for
 5. If a tool fails, explain the error and suggest alternatives.
 6. If you don't have a tool for something, suggest creating a skill with **create_skill**.
 7. Always respond in the same language the user writes (PT-BR if they write in Portuguese).
+
+## SELF-FIX: When something goes wrong
+If a tool fails or you get an error you don't understand:
+1. Use **read_file** to read docs/TROUBLESHOOTING.md — it has fixes for common errors.
+2. Use **read_file** to read docs/self-fix/ARCHITECTURE.md — it explains how your system works.
+3. Follow the fix steps. If the fix requires a restart, ALWAYS warn the user first.
+4. If you can't fix it, explain the problem clearly and what the user needs to do.
+5. NEVER silently ignore errors. NEVER retry the same thing more than 3 times.
 `;
 
 const MAX_PERSONALITY_TOKENS = 10000;
