@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Database } from './infra/database';
 import { Migrations } from './infra/migrations';
+import { SelfHealer } from './infra/SelfHealer';
 import { VaultManager } from './security/VaultManager';
 import { PersonalityEngine } from './core/PersonalityEngine';
 import { MemoryManager } from './memory/MemoryManager';
@@ -44,6 +45,15 @@ async function main(): Promise<void> {
   const logger = Logger.getInstance();
   const activityLogger = ActivityLogger.getInstance();
 
+  // --- Self-Healer: Auto-fix issues before anything else ---
+  const healer = new SelfHealer();
+  const healResults = await healer.healAll();
+  const criticalFails = healResults.filter(r => !r.fixed && ['OPENROUTER_API_KEY not set', 'DATABASE_URL not configured'].includes(r.issue));
+  if (criticalFails.length > 0) {
+    console.error('[TurionZ] Critical issues could not be auto-fixed. Run: npm run setup');
+    // Continue in degraded mode instead of crashing
+  }
+
   // --- Recovery: Boot Sequence ---
   const recovery = RecoveryManager.getInstance();
   const integrity = new IntegrityChecker();
@@ -51,7 +61,9 @@ async function main(): Promise<void> {
 
   // --- Database ---
   const db = Database.getInstance();
-  await db.connect();
+  if (!db.isConnected()) {
+    await db.connect();
+  }
 
   if (db.isConnected()) {
     const migrations = new Migrations();
@@ -186,7 +198,20 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
-main().catch((error) => {
-  console.error('[TurionZ] Fatal error:', error instanceof Error ? error.message : error);
-  process.exit(1);
+main().catch(async (error) => {
+  const msg = error instanceof Error ? error.message : String(error);
+  console.error(`[TurionZ] Startup error: ${msg}`);
+  console.error('[TurionZ] Attempting auto-recovery...');
+
+  // Try self-healer one more time
+  try {
+    const healer = new SelfHealer();
+    await healer.healAll();
+    console.log('[TurionZ] Auto-recovery complete. Restarting...');
+    // Let systemd/pm2 restart us
+    process.exit(1);
+  } catch (healError) {
+    console.error('[TurionZ] Auto-recovery failed. Run: npm run setup');
+    process.exit(1);
+  }
 });
