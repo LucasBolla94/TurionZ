@@ -38,9 +38,21 @@ export class ExternalTool extends BaseTool {
       let stderr = '';
       let timedOut = false;
 
-      const child = spawn(this.command, [this.scriptPath], {
+      // Resolve command — handle tsx/ts-node/npx not in PATH for background processes
+      let cmd = this.command;
+      let cmdArgs = [this.scriptPath];
+
+      if (cmd === 'tsx' || cmd === 'ts-node') {
+        // Use npx as wrapper to find tsx/ts-node
+        cmd = 'npx';
+        cmdArgs = [this.command, this.scriptPath];
+      }
+
+      const child = spawn(cmd, cmdArgs, {
         stdio: ['pipe', 'pipe', 'pipe'],
         timeout: this.timeoutMs,
+        env: { ...process.env, PATH: `${process.env.PATH}:/usr/local/bin:/usr/bin` },
+        shell: true,
       });
 
       child.stdout.on('data', (data: Buffer) => {
