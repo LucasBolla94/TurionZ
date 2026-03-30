@@ -224,9 +224,9 @@ async function main() {
   }
 
   const config: Record<string, string> = {
-    MAIN_MODEL: 'google/gemini-2.5-flash-preview',
-    SUB_AGENT_DEFAULT_MODEL: 'google/gemini-2.5-flash-preview',
-    ANALYSIS_MODEL: 'google/gemini-2.5-flash-preview',
+    MAIN_MODEL: 'google/gemini-2.5-flash',
+    SUB_AGENT_DEFAULT_MODEL: 'google/gemini-2.5-flash',
+    ANALYSIS_MODEL: 'google/gemini-2.5-flash',
     MAX_ITERATIONS: '15',
     CONTEXT_WINDOW_SIZE: '150000',
     API_PORT: '3000',
@@ -281,9 +281,9 @@ async function main() {
 
   // Recommended models IDs to highlight at the top
   const recommendedIds = [
-    'google/gemini-2.5-flash-preview',
     'google/gemini-2.5-flash',
-    'google/gemini-2.5-pro-preview',
+    'google/gemini-2.5-flash',
+    'google/gemini-2.5-pro',
     'google/gemini-2.5-pro',
     'deepseek/deepseek-v3-0324',
     'deepseek/deepseek-chat',

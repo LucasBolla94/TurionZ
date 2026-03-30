@@ -238,9 +238,9 @@ interface ModelInfo {
 
 // Curated list of models that are PROVEN good at tool calling
 const RECOMMENDED_MODELS: ModelInfo[] = [
-  { id: 'google/gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash', inputPrice: '$0.15', outputPrice: '$0.60', context: '1M', toolCalling: '★★★★★', rating: 'Melhor custo-benefício' },
-  { id: 'google/gemini-2.5-flash-lite-preview', name: 'Gemini 2.5 Flash Lite', inputPrice: '$0.05', outputPrice: '$0.20', context: '1M', toolCalling: '★★★★☆', rating: 'Ultra barato' },
-  { id: 'google/gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro', inputPrice: '$1.25', outputPrice: '$10.00', context: '1M', toolCalling: '★★★★★', rating: 'Premium (raciocínio)' },
+  { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', inputPrice: '$0.15', outputPrice: '$0.60', context: '1M', toolCalling: '★★★★★', rating: 'Melhor custo-benefício' },
+  { id: 'google/gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', inputPrice: '$0.05', outputPrice: '$0.20', context: '1M', toolCalling: '★★★★☆', rating: 'Ultra barato' },
+  { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', inputPrice: '$1.25', outputPrice: '$10.00', context: '1M', toolCalling: '★★★★★', rating: 'Premium (raciocínio)' },
   { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', inputPrice: '$0.15', outputPrice: '$0.60', context: '128K', toolCalling: '★★★★★', rating: 'Confiável e barato' },
   { id: 'openai/gpt-4o', name: 'GPT-4o', inputPrice: '$2.50', outputPrice: '$10.00', context: '128K', toolCalling: '★★★★★', rating: 'Tool calling preciso' },
   { id: 'anthropic/claude-haiku-4.5', name: 'Claude Haiku 4.5', inputPrice: '$1.00', outputPrice: '$5.00', context: '200K', toolCalling: '★★★★★', rating: 'Rápido e inteligente' },

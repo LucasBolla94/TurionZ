@@ -11,8 +11,8 @@ import { ILlmProvider } from './ILlmProvider';
 import { OpenRouterProvider } from './OpenRouterProvider';
 import { VaultManager } from '../security/VaultManager';
 
-const DEFAULT_MAIN_MODEL = 'google/gemini-2.5-flash-preview';
-const DEFAULT_SUB_AGENT_MODEL = 'google/gemini-2.5-flash-preview';
+const DEFAULT_MAIN_MODEL = 'google/gemini-2.5-flash';
+const DEFAULT_SUB_AGENT_MODEL = 'google/gemini-2.5-flash';
 
 export class ProviderFactory {
   private static getOpenRouterKey(): string {

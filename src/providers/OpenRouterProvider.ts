@@ -9,7 +9,7 @@ import { LlmMessage, LlmResponse, LlmConfig, ToolDefinition, ToolCall } from '..
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 const DEFAULT_CONFIG: LlmConfig = {
-  model: 'google/gemini-2.5-flash-preview',
+  model: 'google/gemini-2.5-flash',
   temperature: 0.7,
   maxTokens: 4096,
   timeout: 120000,
