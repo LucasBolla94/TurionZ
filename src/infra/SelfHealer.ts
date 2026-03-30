@@ -49,6 +49,9 @@ export class SelfHealer {
     // 5. Environment variables
     this.healEnvVars();
 
+    // 6. Broken skills cleanup
+    this.healSkills();
+
     // Report
     const fixed = this.results.filter(r => r.fixed).length;
     const failed = this.results.filter(r => !r.fixed).length;
@@ -254,6 +257,71 @@ export class SelfHealer {
           fixed: false,
           detail: `${desc} — run npm run setup to configure`,
         });
+      }
+    }
+  }
+
+  // ─── 6. Broken Skills ─────────────────────────────────────
+
+  private healSkills(): void {
+    const skillsDir = path.join(process.cwd(), '.agents', 'skills');
+    if (!fs.existsSync(skillsDir)) return;
+
+    const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name === 'skill-creator') continue; // Never delete system skill
+
+      const skillPath = path.join(skillsDir, entry.name);
+      const skillMd = path.join(skillPath, 'SKILL.md');
+
+      // Check 1: No SKILL.md = ghost folder
+      if (!fs.existsSync(skillMd)) {
+        try {
+          fs.rmSync(skillPath, { recursive: true, force: true });
+          this.results.push({ issue: `Ghost skill folder: ${entry.name}`, fixed: true, detail: 'Deleted (no SKILL.md)' });
+        } catch { /* ignore */ }
+        continue;
+      }
+
+      // Check 2: Empty SKILL.md
+      const content = fs.readFileSync(skillMd, 'utf-8');
+      if (content.trim().length < 10) {
+        try {
+          fs.rmSync(skillPath, { recursive: true, force: true });
+          this.results.push({ issue: `Empty skill: ${entry.name}`, fixed: true, detail: 'Deleted (SKILL.md empty)' });
+        } catch { /* ignore */ }
+        continue;
+      }
+
+      // Check 3: No frontmatter
+      if (!content.includes('---')) {
+        try {
+          fs.rmSync(skillPath, { recursive: true, force: true });
+          this.results.push({ issue: `Invalid skill: ${entry.name}`, fixed: true, detail: 'Deleted (no frontmatter)' });
+        } catch { /* ignore */ }
+        continue;
+      }
+
+      // Check 4: Tools that reference tsx/ts-node (common broken pattern)
+      const toolsDir = path.join(skillPath, 'tools');
+      if (fs.existsSync(toolsDir)) {
+        const tools = fs.readdirSync(toolsDir);
+        let hasEmptyTools = false;
+        for (const tool of tools) {
+          const toolFile = path.join(toolsDir, tool);
+          if (fs.statSync(toolFile).size === 0) {
+            hasEmptyTools = true;
+            break;
+          }
+        }
+        if (hasEmptyTools) {
+          try {
+            fs.rmSync(skillPath, { recursive: true, force: true });
+            this.results.push({ issue: `Skill with empty tools: ${entry.name}`, fixed: true, detail: 'Deleted (empty tool files)' });
+          } catch { /* ignore */ }
+        }
       }
     }
   }

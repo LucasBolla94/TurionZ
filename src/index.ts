@@ -31,6 +31,7 @@ import { GrepTool } from './tools/builtin/GrepTool';
 import { WebFetchTool } from './tools/builtin/WebFetchTool';
 import { WebSearchTool } from './tools/builtin/WebSearchTool';
 import { GitTool } from './tools/builtin/GitTool';
+import { ManageSkillsTool } from './tools/builtin/ManageSkillsTool';
 import { SkillLoader } from './skills/SkillLoader';
 import { AgentController } from './core/AgentController';
 import { AuthenticationGateway } from './security/AuthenticationGateway';
@@ -111,6 +112,7 @@ async function main(): Promise<void> {
   toolRegistry.register(new WebFetchTool());
   toolRegistry.register(new WebSearchTool());
   toolRegistry.register(new GitTool());
+  toolRegistry.register(new ManageSkillsTool());
   console.log(`[Tools] ${toolRegistry.count()} tool(s) registered.`);
 
   // --- Ensure skill-creator default skill exists ---
