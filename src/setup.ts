@@ -227,7 +227,7 @@ async function main() {
     MAIN_MODEL: 'google/gemini-2.5-flash-preview',
     SUB_AGENT_DEFAULT_MODEL: 'google/gemini-2.5-flash-preview',
     ANALYSIS_MODEL: 'google/gemini-2.5-flash-preview',
-    MAX_ITERATIONS: '5',
+    MAX_ITERATIONS: '15',
     CONTEXT_WINDOW_SIZE: '150000',
     API_PORT: '3000',
     DISCORD_BOT_TOKEN: '',

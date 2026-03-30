@@ -18,7 +18,7 @@ import {
   MessageFlags,
 } from '../types';
 
-const DEFAULT_MAX_ITERATIONS = 5;
+const DEFAULT_MAX_ITERATIONS = 15;
 const DEFAULT_MAX_TOOLS_PER_ROUND = 5;
 
 interface IterationLog {
