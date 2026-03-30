@@ -109,17 +109,40 @@ export class AgentLoop {
       const iterStart = Date.now();
       console.log(`[AgentLoop] --- Iteration ${iteration}/${maxIterations} ---`);
 
-      // --- Call LLM ---
+      // --- Call LLM (with retry on transient errors) ---
       let response;
-      try {
-        response = await this.provider.chat(messages, input.tools);
-      } catch (error) {
-        const errMsg = error instanceof Error ? error.message : String(error);
-        console.error(`[AgentLoop] LLM error: ${errMsg}`);
-        status = 'error';
-        finalResponse = 'Falha na comunicação com o provedor de IA. Tente novamente.';
-        break;
+      let llmRetries = 0;
+      const maxLlmRetries = 2;
+      while (true) {
+        try {
+          response = await this.provider.chat(messages, input.tools);
+          break; // Success
+        } catch (error) {
+          const errMsg = error instanceof Error ? error.message : String(error);
+          llmRetries++;
+
+          // Permanent errors — don't retry
+          if (errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('not a valid model')) {
+            console.error(`[AgentLoop] LLM permanent error: ${errMsg}`);
+            status = 'error';
+            finalResponse = `Erro de configuração: ${errMsg}. Verifique o modelo e a API key.`;
+            break;
+          }
+
+          // Transient errors — retry up to 2 times
+          if (llmRetries <= maxLlmRetries) {
+            console.warn(`[AgentLoop] LLM error (retry ${llmRetries}/${maxLlmRetries}): ${errMsg}`);
+            await new Promise(r => setTimeout(r, llmRetries * 2000));
+            continue;
+          }
+
+          console.error(`[AgentLoop] LLM error after ${maxLlmRetries} retries: ${errMsg}`);
+          status = 'error';
+          finalResponse = 'Falha na comunicação com o provedor de IA. Tente novamente.';
+          break;
+        }
       }
+      if (status === 'error' || !response) break;
 
       const llmDuration = Date.now() - iterStart;
       metrics.totalTokensIn += response.tokensIn;

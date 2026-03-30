@@ -60,6 +60,16 @@ export class WebFetchTool extends BaseTool {
       const contentType = response.headers.get('content-type') || '';
       let text = await response.text();
 
+      // Format JSON responses nicely
+      if (contentType.includes('application/json') || contentType.includes('json')) {
+        try {
+          const json = JSON.parse(text);
+          text = JSON.stringify(json, null, 2);
+        } catch {
+          // Not valid JSON, keep as-is
+        }
+      }
+
       // Strip HTML tags if HTML content
       if (contentType.includes('text/html')) {
         text = this.stripHtml(text);
