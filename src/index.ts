@@ -3,6 +3,9 @@
 // Entry Point — Full v0.1
 // ============================================================
 
+import * as dotenv from 'dotenv';
+dotenv.config(); // Load .env BEFORE anything else
+
 import * as fs from 'fs';
 import * as path from 'path';
 import { Database } from './infra/database';
