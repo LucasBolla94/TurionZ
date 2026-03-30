@@ -38,7 +38,10 @@ export class TelegramOutputAdapter {
       return;
     }
 
-    const text = result.response;
+    let text = result.response;
+
+    // Clean up LLM artifacts that shouldn't be shown to users
+    text = this.cleanResponse(text);
 
     if (!text || text.trim().length === 0) {
       await ctx.reply('(Sem resposta)');
@@ -132,6 +135,33 @@ export class TelegramOutputAdapter {
     if (text.includes('```') && text.length > 8000) return true;
     if (text.length > 20000) return true;
     return false;
+  }
+
+  private cleanResponse(text: string): string {
+    if (!text) return '';
+
+    let cleaned = text;
+
+    // Remove tool call artifacts that LLMs sometimes include in their response
+    // Pattern: (Função usada: tool_name)\n\njson\n{...}
+    cleaned = cleaned.replace(/\(Função usada:.*?\)\s*\n*json\s*\n*\{[\s\S]*?\}/gi, '');
+
+    // Pattern: (Function used: tool_name)
+    cleaned = cleaned.replace(/\(Function used:.*?\)\s*\n*/gi, '');
+    cleaned = cleaned.replace(/\(Função usada:.*?\)\s*\n*/gi, '');
+
+    // Remove raw JSON tool calls that leaked into response
+    cleaned = cleaned.replace(/```json\s*\n*\{"(query|command|path|action)"[\s\S]*?\}\s*\n*```/gi, '');
+    cleaned = cleaned.replace(/\n*json\n\{[\s\S]*?\}\n*/gi, '');
+
+    // Remove "searching/buscando" filler that came before tool result
+    cleaned = cleaned.replace(/.*está buscando.*\n*/gi, '');
+    cleaned = cleaned.replace(/.*um segundo.*\n*/gi, '');
+
+    // Remove excessive whitespace
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+
+    return cleaned;
   }
 
   private splitIntoChunks(text: string, maxLength: number): string[] {
