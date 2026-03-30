@@ -103,25 +103,67 @@ function writeEnvFile(config: Record<string, string>): void {
 
 // ─── Validators ────────────────────────────────────────────
 
-async function validateOpenRouterKey(key: string): Promise<boolean> {
+interface OpenRouterModel {
+  id: string;
+  name: string;
+  pricing: { prompt: string; completion: string };
+  context_length: number;
+}
+
+async function validateAndFetchModels(key: string): Promise<{ valid: boolean; models: OpenRouterModel[] }> {
   try {
-    const result = await httpPost(
-      'https://openrouter.ai/api/v1/chat/completions',
-      {
-        model: 'google/gemini-2.5-flash-preview',
-        messages: [{ role: 'user', content: 'Say OK' }],
-        max_tokens: 5,
-      },
-      {
-        'Authorization': `Bearer ${key}`,
+    const data = await httpGetWithAuth('https://openrouter.ai/api/v1/models', key);
+    const parsed = JSON.parse(data);
+    if (parsed.data && Array.isArray(parsed.data)) {
+      // Filter models that support tool calling (have reasonable context and pricing)
+      const models = parsed.data
+        .filter((m: any) => m.id && m.pricing && parseFloat(m.pricing.prompt) >= 0)
+        .map((m: any) => ({
+          id: m.id,
+          name: m.name || m.id,
+          pricing: { prompt: m.pricing.prompt, completion: m.pricing.completion },
+          context_length: m.context_length || 0,
+        }));
+      return { valid: true, models };
+    }
+    return { valid: false, models: [] };
+  } catch {
+    return { valid: false, models: [] };
+  }
+}
+
+function httpGetWithAuth(url: string, apiKey: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const options = {
+      hostname: parsed.hostname,
+      path: parsed.pathname + parsed.search,
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': 'https://bollanetwork.com',
         'X-Title': 'TurionZ Setup',
-      }
-    );
-    return result.status === 200;
-  } catch {
-    return false;
-  }
+      },
+    };
+    https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => resolve(data));
+      res.on('error', reject);
+    }).on('error', reject).end();
+  });
+}
+
+function formatPrice(pricePerToken: string): string {
+  const perMillion = parseFloat(pricePerToken) * 1_000_000;
+  if (perMillion < 0.01) return 'grátis';
+  return `$${perMillion.toFixed(2)}/1M`;
+}
+
+function formatContext(ctx: number): string {
+  if (ctx >= 1_000_000) return `${(ctx / 1_000_000).toFixed(0)}M`;
+  if (ctx >= 1_000) return `${(ctx / 1_000).toFixed(0)}K`;
+  return `${ctx}`;
 }
 
 async function validateTelegramToken(token: string): Promise<{ valid: boolean; botName?: string }> {
@@ -217,36 +259,65 @@ async function main() {
 
   config.OPENROUTER_API_KEY = openrouterKey as string;
 
-  // Validate key
+  // Validate key and fetch available models
   const keySpinner = p.spinner();
-  keySpinner.start('Validando chave do OpenRouter...');
+  keySpinner.start('Validando chave e buscando modelos disponíveis no OpenRouter...');
 
-  const keyValid = await validateOpenRouterKey(config.OPENROUTER_API_KEY);
-  if (keyValid) {
-    keySpinner.stop('OpenRouter: Chave válida ✓');
+  const { valid: keyValid, models: allModels } = await validateAndFetchModels(config.OPENROUTER_API_KEY);
+
+  if (keyValid && allModels.length > 0) {
+    keySpinner.stop(`OpenRouter: Chave válida ✓ (${allModels.length} modelos disponíveis)`);
   } else {
-    keySpinner.stop('OpenRouter: Chave inválida ✗');
-    p.log.warning('A chave não funcionou com Gemini 2.5 Flash. Verifique no painel do OpenRouter.');
-    const continueAnyway = await p.confirm({ message: 'Continuar mesmo assim?' });
+    keySpinner.stop('OpenRouter: Não foi possível buscar modelos ✗');
+    p.log.warning('Verifique sua chave no painel do OpenRouter (openrouter.ai/keys).');
+    const continueAnyway = await p.confirm({ message: 'Continuar com modelos padrão?' });
     if (p.isCancel(continueAnyway) || !continueAnyway) {
       p.cancel('Setup cancelado.');
       process.exit(0);
     }
   }
 
-  // ─── Step 3: Model Selection (Manual mode) ───────────────
+  // ─── Step 3: Model Selection ─────────────────────────────
 
-  if (mode === 'manual') {
+  // Recommended models IDs to highlight at the top
+  const recommendedIds = [
+    'google/gemini-2.5-flash-preview',
+    'google/gemini-2.5-flash',
+    'google/gemini-2.5-pro-preview',
+    'google/gemini-2.5-pro',
+    'deepseek/deepseek-v3-0324',
+    'deepseek/deepseek-chat',
+    'openai/gpt-4o',
+    'openai/gpt-4o-mini',
+    'anthropic/claude-sonnet-4',
+    'anthropic/claude-haiku-4.5',
+    'meta-llama/llama-4-maverick',
+    'mistralai/mistral-small-3.1-24b-instruct',
+  ];
+
+  if (keyValid && allModels.length > 0) {
+    // Build model options from live data
+    const recommended = allModels
+      .filter(m => recommendedIds.some(r => m.id.includes(r.split('/')[1])))
+      .sort((a, b) => parseFloat(a.pricing.prompt) - parseFloat(b.pricing.prompt));
+
+    const modelOptions = recommended.slice(0, 15).map(m => ({
+      value: m.id,
+      label: m.name.length > 40 ? m.name.substring(0, 40) + '...' : m.name,
+      hint: `In: ${formatPrice(m.pricing.prompt)} | Out: ${formatPrice(m.pricing.completion)} | Ctx: ${formatContext(m.context_length)}`,
+    }));
+
+    // Add "search all" option
+    modelOptions.push({
+      value: '__search__',
+      label: 'Buscar outro modelo...',
+      hint: `Pesquisar entre ${allModels.length} modelos disponíveis`,
+    });
+
+    // Main model selection
     const mainModel = await p.select({
-      message: 'Modelo principal do Thor:',
-      options: [
-        { value: 'google/gemini-2.5-flash-preview', label: 'Gemini 2.5 Flash', hint: '$0.30/1M — Melhor custo-benefício (Recomendado)' },
-        { value: 'google/gemini-2.5-pro-preview', label: 'Gemini 2.5 Pro', hint: '$1.25/1M — Qualidade premium' },
-        { value: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2', hint: '$0.26/1M — Ultra barato, boa qualidade' },
-        { value: 'openai/gpt-4o', label: 'GPT-4o', hint: '$2.50/1M — Tool calling preciso' },
-        { value: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4', hint: '$3.00/1M — Melhor personalidade' },
-        { value: 'custom', label: 'Outro modelo', hint: 'Digitar ID do modelo manualmente' },
-      ],
+      message: 'Modelo principal do Thor (cérebro):',
+      options: modelOptions,
     });
 
     if (p.isCancel(mainModel)) {
@@ -254,31 +325,82 @@ async function main() {
       process.exit(0);
     }
 
-    if (mainModel === 'custom') {
-      const customModel = await p.text({
-        message: 'ID do modelo no OpenRouter (ex: meta-llama/llama-4-maverick):',
+    if (mainModel === '__search__') {
+      const search = await p.text({
+        message: 'Digite parte do nome do modelo (ex: gemini, llama, claude):',
       });
-      if (!p.isCancel(customModel)) {
-        config.MAIN_MODEL = customModel as string;
+
+      if (!p.isCancel(search)) {
+        const query = (search as string).toLowerCase();
+        const filtered = allModels
+          .filter(m => m.id.toLowerCase().includes(query) || m.name.toLowerCase().includes(query))
+          .sort((a, b) => parseFloat(a.pricing.prompt) - parseFloat(b.pricing.prompt))
+          .slice(0, 20);
+
+        if (filtered.length === 0) {
+          p.log.warning('Nenhum modelo encontrado. Usando Gemini 2.5 Flash como padrão.');
+        } else {
+          const searchResult = await p.select({
+            message: `${filtered.length} modelos encontrados — escolha:`,
+            options: filtered.map(m => ({
+              value: m.id,
+              label: m.name.length > 45 ? m.name.substring(0, 45) + '...' : m.name,
+              hint: `In: ${formatPrice(m.pricing.prompt)} | Out: ${formatPrice(m.pricing.completion)} | Ctx: ${formatContext(m.context_length)}`,
+            })),
+          });
+
+          if (!p.isCancel(searchResult)) {
+            config.MAIN_MODEL = searchResult as string;
+          }
+        }
       }
     } else {
       config.MAIN_MODEL = mainModel as string;
     }
 
-    const subModel = await p.select({
-      message: 'Modelo padrão dos sub-agents:',
-      options: [
-        { value: 'google/gemini-2.5-flash-preview', label: 'Gemini 2.5 Flash', hint: '$0.30/1M — Recomendado' },
-        { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', hint: '$0.15/1M — Barato e confiável' },
-        { value: 'mistralai/mistral-small-3.1-24b-instruct', label: 'Mistral Small 3.1', hint: '$0.03/1M — Ultra barato' },
-        { value: 'deepseek/deepseek-v3.2', label: 'DeepSeek V3.2', hint: '$0.26/1M — Bom custo-benefício' },
-      ],
-    });
+    // Sub-agent model selection
+    const cheapModels = allModels
+      .filter(m => parseFloat(m.pricing.prompt) > 0 && parseFloat(m.pricing.prompt) * 1_000_000 < 2)
+      .sort((a, b) => parseFloat(a.pricing.prompt) - parseFloat(b.pricing.prompt))
+      .slice(0, 15);
 
-    if (!p.isCancel(subModel)) {
-      config.SUB_AGENT_DEFAULT_MODEL = subModel as string;
+    if (cheapModels.length > 0) {
+      const subModelOptions = cheapModels.map(m => ({
+        value: m.id,
+        label: m.name.length > 40 ? m.name.substring(0, 40) + '...' : m.name,
+        hint: `In: ${formatPrice(m.pricing.prompt)} | Out: ${formatPrice(m.pricing.completion)} | Ctx: ${formatContext(m.context_length)}`,
+      }));
+
+      // Add same as main option
+      subModelOptions.unshift({
+        value: config.MAIN_MODEL,
+        label: `Mesmo do Thor (${config.MAIN_MODEL.split('/').pop()})`,
+        hint: 'Usar o mesmo modelo principal',
+      });
+
+      const subModel = await p.select({
+        message: 'Modelo padrão dos sub-agents (mais baratos):',
+        options: subModelOptions,
+      });
+
+      if (!p.isCancel(subModel)) {
+        config.SUB_AGENT_DEFAULT_MODEL = subModel as string;
+      }
     }
+
+    // Show selected summary
+    const mainInfo = allModels.find(m => m.id === config.MAIN_MODEL);
+    const subInfo = allModels.find(m => m.id === config.SUB_AGENT_DEFAULT_MODEL);
+    p.log.success(
+      `Thor: ${mainInfo?.name || config.MAIN_MODEL} (${mainInfo ? formatPrice(mainInfo.pricing.prompt) : '?'})\n` +
+      `  Sub-agents: ${subInfo?.name || config.SUB_AGENT_DEFAULT_MODEL} (${subInfo ? formatPrice(subInfo.pricing.prompt) : '?'})`
+    );
+  } else {
+    // Fallback: hardcoded options if API failed
+    p.log.info('Usando modelos padrão (Gemini 2.5 Flash).');
   }
+
+  config.ANALYSIS_MODEL = config.SUB_AGENT_DEFAULT_MODEL;
 
   // ─── Step 4: Telegram ────────────────────────────────────
 
