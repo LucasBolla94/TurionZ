@@ -253,10 +253,49 @@ export class AgentLoop {
 
       // Check if this was the last iteration
       if (iteration === maxIterations) {
-        status = 'max_iterations';
-        finalResponse =
-          'Desculpe, não consegui concluir a tarefa dentro do limite de processamento. Tente reformular o pedido.';
-        console.log(`[AgentLoop] Max iterations (${maxIterations}) reached.`);
+        // Last chance: force LLM to summarize what it has so far
+        console.log(`[AgentLoop] Max iterations reached. Forcing final summary...`);
+        messages.push({
+          role: 'user',
+          content: 'You MUST answer NOW with whatever information you have. Do NOT call any more tools. Give the user a direct answer based on the tool results you already received. Be concise.',
+        });
+
+        try {
+          const finalAttempt = await this.provider.chat(messages, []); // No tools = forced text response
+          if (finalAttempt.content && finalAttempt.content.trim().length > 0) {
+            finalResponse = finalAttempt.content;
+            status = 'completed';
+            metrics.totalTokensIn += finalAttempt.tokensIn;
+            metrics.totalTokensOut += finalAttempt.tokensOut;
+          } else {
+            status = 'max_iterations';
+            finalResponse = 'Não consegui completar. Tente de novo com um pedido mais simples.';
+          }
+        } catch {
+          status = 'max_iterations';
+          finalResponse = 'Não consegui completar. Tente de novo.';
+        }
+      }
+    }
+
+    // --- Task Completion Guard ---
+    // If final response is empty or looks incomplete, force one more LLM call
+    if (status === 'completed' && finalResponse && this.looksIncomplete(finalResponse)) {
+      console.log('[AgentLoop] Response looks incomplete. Running completion guard...');
+      messages.push({
+        role: 'user',
+        content: 'Your response seems incomplete. Please provide a COMPLETE, DIRECT answer to the original question. Use the tool results you already have. Do NOT describe what you would do — just answer.',
+      });
+
+      try {
+        const guardResponse = await this.provider.chat(messages, []);
+        if (guardResponse.content && guardResponse.content.trim().length > 10) {
+          finalResponse = guardResponse.content;
+          metrics.totalTokensIn += guardResponse.tokensIn;
+          metrics.totalTokensOut += guardResponse.tokensOut;
+        }
+      } catch {
+        // Keep original response
       }
     }
 
@@ -333,6 +372,39 @@ export class AgentLoop {
     console.log(`[AgentLoop]   ${formatted}`);
 
     return result;
+  }
+
+  private looksIncomplete(response: string): boolean {
+    if (!response || response.trim().length === 0) return true;
+
+    const lower = response.toLowerCase();
+    const incompletePatterns = [
+      'vou tentar',
+      'vou buscar',
+      'vou criar',
+      'vou fazer',
+      'vou verificar',
+      'vou procurar',
+      'vou pesquisar',
+      'um segundo',
+      'um momento',
+      'aguarde',
+      'tentando',
+      'buscando',
+      'processando',
+      'let me',
+      'i will',
+      'working on',
+      'fica tranquilo',
+      'já resolvo',
+      'resultado veio como null',
+      'deu um pequeno erro',
+      'parece que deu erro',
+      'console.log',
+      'depurar',
+    ];
+
+    return incompletePatterns.some(p => lower.includes(p));
   }
 
   private logIteration(log: IterationLog): void {
