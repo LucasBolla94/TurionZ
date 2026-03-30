@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "TurionZ (Thor) — AI Personal Agent by Bolla Network",
   "main": "dist/index.js",
+  "bin": {
+    "turionz": "dist/cli.js"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
