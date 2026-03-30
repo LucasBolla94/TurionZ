@@ -20,6 +20,17 @@ import { CreateSubAgentTool } from './tools/builtin/CreateSubAgentTool';
 import { CheckSubAgentTool } from './tools/builtin/CheckSubAgentTool';
 import { CommunicateSubAgentTool } from './tools/builtin/CommunicateSubAgentTool';
 import { CreateSkillTool } from './tools/builtin/CreateSkillTool';
+import { ExecuteCommandTool } from './tools/builtin/ExecuteCommandTool';
+import { ReadFileTool } from './tools/builtin/ReadFileTool';
+import { WriteFileTool } from './tools/builtin/WriteFileTool';
+import { EditFileTool } from './tools/builtin/EditFileTool';
+import { DeleteFileTool } from './tools/builtin/DeleteFileTool';
+import { ListDirectoryTool } from './tools/builtin/ListDirectoryTool';
+import { GlobTool } from './tools/builtin/GlobTool';
+import { GrepTool } from './tools/builtin/GrepTool';
+import { WebFetchTool } from './tools/builtin/WebFetchTool';
+import { WebSearchTool } from './tools/builtin/WebSearchTool';
+import { GitTool } from './tools/builtin/GitTool';
 import { SkillLoader } from './skills/SkillLoader';
 import { AgentController } from './core/AgentController';
 import { AuthenticationGateway } from './security/AuthenticationGateway';
@@ -89,6 +100,17 @@ async function main(): Promise<void> {
   toolRegistry.register(new CheckSubAgentTool());
   toolRegistry.register(new CommunicateSubAgentTool());
   toolRegistry.register(new CreateSkillTool(skillLoader));
+  toolRegistry.register(new ExecuteCommandTool());
+  toolRegistry.register(new ReadFileTool());
+  toolRegistry.register(new WriteFileTool());
+  toolRegistry.register(new EditFileTool());
+  toolRegistry.register(new DeleteFileTool());
+  toolRegistry.register(new ListDirectoryTool());
+  toolRegistry.register(new GlobTool());
+  toolRegistry.register(new GrepTool());
+  toolRegistry.register(new WebFetchTool());
+  toolRegistry.register(new WebSearchTool());
+  toolRegistry.register(new GitTool());
   console.log(`[Tools] ${toolRegistry.count()} tool(s) registered.`);
 
   // --- Ensure skill-creator default skill exists ---
