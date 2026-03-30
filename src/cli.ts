@@ -224,6 +224,109 @@ function update(): void {
   }
 }
 
+// ─── Models command ────────────────────────────────────────
+
+interface ModelInfo {
+  id: string;
+  name: string;
+  inputPrice: string;
+  outputPrice: string;
+  context: string;
+  toolCalling: string;
+  rating: string;
+}
+
+// Curated list of models that are PROVEN good at tool calling
+const RECOMMENDED_MODELS: ModelInfo[] = [
+  { id: 'google/gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash', inputPrice: '$0.15', outputPrice: '$0.60', context: '1M', toolCalling: '★★★★★', rating: 'Melhor custo-benefício' },
+  { id: 'google/gemini-2.5-flash-lite-preview', name: 'Gemini 2.5 Flash Lite', inputPrice: '$0.05', outputPrice: '$0.20', context: '1M', toolCalling: '★★★★☆', rating: 'Ultra barato' },
+  { id: 'google/gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro', inputPrice: '$1.25', outputPrice: '$10.00', context: '1M', toolCalling: '★★★★★', rating: 'Premium (raciocínio)' },
+  { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', inputPrice: '$0.15', outputPrice: '$0.60', context: '128K', toolCalling: '★★★★★', rating: 'Confiável e barato' },
+  { id: 'openai/gpt-4o', name: 'GPT-4o', inputPrice: '$2.50', outputPrice: '$10.00', context: '128K', toolCalling: '★★★★★', rating: 'Tool calling preciso' },
+  { id: 'anthropic/claude-haiku-4.5', name: 'Claude Haiku 4.5', inputPrice: '$1.00', outputPrice: '$5.00', context: '200K', toolCalling: '★★★★★', rating: 'Rápido e inteligente' },
+  { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4', inputPrice: '$3.00', outputPrice: '$15.00', context: '200K', toolCalling: '★★★★★', rating: 'Melhor personalidade' },
+  { id: 'mistralai/mistral-small-3.1-24b-instruct', name: 'Mistral Small 3.1', inputPrice: '$0.03', outputPrice: '$0.11', context: '131K', toolCalling: '★★★★☆', rating: 'Mais barato com tools' },
+  { id: 'meta-llama/llama-4-maverick', name: 'Llama 4 Maverick', inputPrice: '$0.15', outputPrice: '$0.60', context: '1M', toolCalling: '★★★☆☆', rating: 'Open-source, 1M ctx' },
+  { id: 'qwen/qwen3-235b-a22b', name: 'Qwen 3 235B', inputPrice: '$0.20', outputPrice: '$0.60', context: '128K', toolCalling: '★★★★☆', rating: 'Forte em raciocínio' },
+  { id: 'deepseek/deepseek-chat-v3-0324', name: 'DeepSeek V3', inputPrice: '$0.20', outputPrice: '$0.55', context: '163K', toolCalling: '★★☆☆☆', rating: '⚠️ Fraco em tools' },
+  { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', inputPrice: '$0.45', outputPrice: '$2.15', context: '163K', toolCalling: '★★★☆☆', rating: 'Raciocínio profundo' },
+];
+
+async function models(): Promise<void> {
+  const envPath = path.join(PROJECT_DIR, '.env');
+  let currentModel = '';
+  try {
+    const env = fs.readFileSync(envPath, 'utf-8');
+    const match = env.match(/MAIN_MODEL=(.+)/);
+    if (match) currentModel = match[1].trim();
+  } catch { /* ignore */ }
+
+  console.log('');
+  console.log('  ⚡ TurionZ — Modelos Recomendados (Tool Calling)');
+  console.log('  ─────────────────────────────────────────────────');
+  console.log('');
+  console.log('  #  │ Modelo                  │ Input/1M  │ Output/1M │ Ctx   │ Tools     │ Nota');
+  console.log('  ───┼─────────────────────────┼───────────┼───────────┼───────┼───────────┼────────────────────');
+
+  RECOMMENDED_MODELS.forEach((m, i) => {
+    const current = m.id === currentModel ? ' ◄ ATUAL' : '';
+    const num = String(i + 1).padStart(2);
+    const name = m.name.padEnd(23);
+    const input = m.inputPrice.padEnd(9);
+    const output = m.outputPrice.padEnd(9);
+    const ctx = m.context.padEnd(5);
+    const tools = m.toolCalling.padEnd(9);
+    console.log(`  ${num} │ ${name} │ ${input} │ ${output} │ ${ctx} │ ${tools} │ ${m.rating}${current}`);
+  });
+
+  console.log('');
+  console.log(`  Modelo atual: ${currentModel || 'não configurado'}`);
+  console.log('');
+  console.log('  Para trocar, use o número:');
+  console.log('    turionz models set 1    → Gemini 2.5 Flash');
+  console.log('    turionz models set 4    → GPT-4o Mini');
+  console.log('');
+  console.log('  ★★★★★ = Excelente em tool calling (recomendado)');
+  console.log('  ★★☆☆☆ = Fraco (vai "descrever" em vez de executar)');
+  console.log('');
+
+  // Handle "turionz models set N"
+  const subCmd = process.argv[3];
+  const modelNum = parseInt(process.argv[4], 10);
+
+  if (subCmd === 'set' && modelNum >= 1 && modelNum <= RECOMMENDED_MODELS.length) {
+    const selected = RECOMMENDED_MODELS[modelNum - 1];
+
+    try {
+      let envContent = fs.readFileSync(envPath, 'utf-8');
+
+      // Replace MAIN_MODEL
+      if (envContent.includes('MAIN_MODEL=')) {
+        envContent = envContent.replace(/MAIN_MODEL=.+/, `MAIN_MODEL=${selected.id}`);
+      } else {
+        envContent += `\nMAIN_MODEL=${selected.id}`;
+      }
+
+      fs.writeFileSync(envPath, envContent, 'utf-8');
+
+      console.log(`  ✓ Modelo trocado para: ${selected.name} (${selected.id})`);
+      console.log(`    Input: ${selected.inputPrice}/1M | Output: ${selected.outputPrice}/1M`);
+      console.log('');
+
+      // Auto-restart if running
+      const pid = getPid();
+      if (pid) {
+        console.log('  Reiniciando Thor com o novo modelo...');
+        restart();
+      } else {
+        console.log('  Use: turionz start — para iniciar com o novo modelo');
+      }
+    } catch (e) {
+      console.error(`  ✗ Erro ao salvar: ${e}`);
+    }
+  }
+}
+
 // ─── Parse command ─────────────────────────────────────────
 
 const command = process.argv[2];
@@ -247,6 +350,9 @@ switch (command) {
   case 'update':
     update();
     break;
+  case 'models':
+    models();
+    break;
   case 'setup':
     execSync('npx tsx src/setup.ts', { cwd: PROJECT_DIR, stdio: 'inherit' });
     break;
@@ -262,6 +368,7 @@ switch (command) {
     console.log('    turionz status   — Check if Thor is running');
     console.log('    turionz logs     — View logs in real-time');
     console.log('    turionz update   — Pull latest + rebuild + restart');
+    console.log('    turionz models   — List recommended models + change');
     console.log('    turionz setup    — Run interactive setup wizard');
     console.log('');
     break;
