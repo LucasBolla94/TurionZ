@@ -52,14 +52,18 @@ export class Migrations {
     }
   }
 
+  private pgvectorAvailable = false;
+
   private async createExtensions(): Promise<void> {
     await this.db.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
-    // pgvector will be needed later for embeddings — create it now since
-    // it requires superuser and is better done at setup time
+    // pgvector for embeddings — requires the extension to be installed at OS level
     try {
       await this.db.execute('CREATE EXTENSION IF NOT EXISTS vector');
+      this.pgvectorAvailable = true;
     } catch {
-      console.warn('[Migrations] pgvector extension not available. Embedding search will be disabled.');
+      this.pgvectorAvailable = false;
+      console.warn('[Migrations] pgvector extension not available. Embedding column will be skipped.');
+      console.warn('[Migrations] To fix: sudo apt install postgresql-16-pgvector && sudo -u postgres psql -d turionz -c "CREATE EXTENSION vector;"');
     }
   }
 
@@ -79,6 +83,7 @@ export class Migrations {
   }
 
   private async createMessagesTable(): Promise<void> {
+    const embeddingCol = this.pgvectorAvailable ? 'embedding vector(768),' : '';
     await this.db.execute(`
       CREATE TABLE IF NOT EXISTS messages (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -86,11 +91,20 @@ export class Migrations {
         role VARCHAR NOT NULL,
         content TEXT NOT NULL,
         token_count INTEGER,
-        embedding vector(768),
+        ${embeddingCol}
         is_summary BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
+
+    // If pgvector was added later, add the column to existing table
+    if (this.pgvectorAvailable) {
+      try {
+        await this.db.execute('ALTER TABLE messages ADD COLUMN IF NOT EXISTS embedding vector(768)');
+      } catch {
+        // Column may already exist or pgvector not fully ready — non-fatal
+      }
+    }
   }
 
   private async createAuthorizedUsersTable(): Promise<void> {

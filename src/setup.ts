@@ -504,6 +504,11 @@ async function main() {
     try {
       runCmd('sudo apt update -y', false);
       runCmd('sudo apt install -y postgresql postgresql-contrib', false);
+
+      // Install pgvector extension (required for embedding search)
+      const pgVersion = runCmd('pg_config --version 2>/dev/null').match(/\d+/)?.[0] || '16';
+      runCmd(`sudo apt install -y postgresql-${pgVersion}-pgvector 2>/dev/null || sudo apt install -y postgresql-16-pgvector`, false);
+
       runCmd('sudo systemctl start postgresql', false);
       runCmd('sudo systemctl enable postgresql', false);
 
@@ -511,6 +516,9 @@ async function main() {
       runCmd('sudo -u postgres psql -c "CREATE USER turionz WITH PASSWORD \'turionz123\';" 2>/dev/null || true');
       runCmd('sudo -u postgres psql -c "CREATE DATABASE turionz OWNER turionz;" 2>/dev/null || true');
       runCmd('sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE turionz TO turionz;"');
+
+      // Enable pgvector extension in the database
+      runCmd('sudo -u postgres psql -d turionz -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true');
 
       config.DATABASE_URL = 'postgresql://turionz:turionz123@localhost:5432/turionz';
       pgSpinner.stop('PostgreSQL instalado e configurado ✓');
@@ -571,6 +579,16 @@ async function main() {
   writeEnvFile(config);
 
   writeSpinner.stop('.env criado ✓');
+
+  // ─── Step 8b: Create required directories ─────────────────
+
+  const dirs = ['tmp', '.agents/skills/skill-creator', 'data/vault', 'data/embeddings'];
+  for (const dir of dirs) {
+    const fullPath = path.join(process.cwd(), dir);
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
+    }
+  }
 
   // ─── Step 9: Install Dependencies ────────────────────────
 
